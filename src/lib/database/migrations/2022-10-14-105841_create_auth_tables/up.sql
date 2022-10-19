@@ -6,12 +6,12 @@ CREATE TABLE IF NOT EXISTS public.roles (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name character varying NOT NULL,
     description character varying,
+    config jsonb NOT NULL,
+    role_group_id uuid,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone,
     deleted_at timestamp without time zone,
     hidden_at timestamp without time zone,
-    config jsonb NOT NULL,
-    role_group_id uuid,
     PRIMARY KEY (id),
     CONSTRAINT unique_role_name UNIQUE (name)
 );
@@ -19,16 +19,16 @@ CREATE TABLE IF NOT EXISTS public.users (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     first_name character varying NOT NULL,
     last_name character varying NOT NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT now(),
-    updated_at timestamp without time zone,
-    deleted_at timestamp without time zone,
-    hidden_at timestamp without time zone,
     email_address character varying NOT NULL,
     phone character varying,
     external_provider_config jsonb,
     config jsonb,
     user_group_id uuid,
     role_id uuid,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone,
+    deleted_at timestamp without time zone,
+    hidden_at timestamp without time zone,
     PRIMARY KEY (id),
     CONSTRAINT unique_email_address UNIQUE (email_address)
 );
@@ -36,23 +36,23 @@ CREATE TABLE IF NOT EXISTS public.role_groups (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name character varying NOT NULL,
     description character varying,
+    config jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone,
     deleted_at timestamp without time zone,
     hidden_at timestamp without time zone,
-    config jsonb NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT unique_role_group_name UNIQUE (name)
 );
 CREATE TABLE IF NOT EXISTS public.user_groups (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name character varying NOT NULL,
+    description character varying,
+    config jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone,
     deleted_at timestamp without time zone,
     hidden_at timestamp without time zone,
-    description character varying,
-    config jsonb NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT unique_user_group_name UNIQUE (name)
 );

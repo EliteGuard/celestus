@@ -17,11 +17,11 @@ diesel::table! {
         id -> Uuid,
         name -> Varchar,
         description -> Nullable<Varchar>,
+        config -> Jsonb,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,
         deleted_at -> Nullable<Timestamp>,
         hidden_at -> Nullable<Timestamp>,
-        config -> Jsonb,
     }
 }
 
@@ -30,12 +30,12 @@ diesel::table! {
         id -> Uuid,
         name -> Varchar,
         description -> Nullable<Varchar>,
+        config -> Jsonb,
+        role_group_id -> Nullable<Uuid>,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,
         deleted_at -> Nullable<Timestamp>,
         hidden_at -> Nullable<Timestamp>,
-        config -> Jsonb,
-        role_group_id -> Nullable<Uuid>,
     }
 }
 
@@ -55,12 +55,12 @@ diesel::table! {
     user_groups (id) {
         id -> Uuid,
         name -> Varchar,
+        description -> Nullable<Varchar>,
+        config -> Jsonb,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,
         deleted_at -> Nullable<Timestamp>,
         hidden_at -> Nullable<Timestamp>,
-        description -> Nullable<Varchar>,
-        config -> Jsonb,
     }
 }
 
@@ -69,16 +69,16 @@ diesel::table! {
         id -> Uuid,
         first_name -> Varchar,
         last_name -> Varchar,
-        created_at -> Timestamp,
-        updated_at -> Nullable<Timestamp>,
-        deleted_at -> Nullable<Timestamp>,
-        hidden_at -> Nullable<Timestamp>,
         email_address -> Varchar,
         phone -> Nullable<Varchar>,
         external_provider_config -> Nullable<Jsonb>,
         config -> Nullable<Jsonb>,
         user_group_id -> Nullable<Uuid>,
         role_id -> Nullable<Uuid>,
+        created_at -> Timestamp,
+        updated_at -> Nullable<Timestamp>,
+        deleted_at -> Nullable<Timestamp>,
+        hidden_at -> Nullable<Timestamp>,
     }
 }
 

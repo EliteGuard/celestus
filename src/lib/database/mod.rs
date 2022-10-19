@@ -5,6 +5,9 @@ use diesel::prelude::*;
 use dotenvy::dotenv;
 use std::env;
 
+pub mod models;
+pub mod schema;
+
 pub struct Database {
     populated: bool,
     ready: bool,
@@ -25,6 +28,10 @@ impl Database {
             return Err(DatabaseError::ConnectFailed);
         }
 
+        if !self.populate() {
+            return Err(DatabaseError::PopulateFailed);
+        }
+
         Ok(true)
     }
 
@@ -39,6 +46,10 @@ impl Database {
 
         !self.connection.is_none()
     }
+
+    fn populate(&mut self) -> bool {
+        false
+    }
 }
 
 #[non_exhaustive]
@@ -46,7 +57,7 @@ impl Database {
 pub enum DatabaseError {
     #[error("Failed to connect to database!")]
     ConnectFailed,
-    #[error("Failed to insert populate data!")]
+    #[error("Failed to populate data!")]
     PopulateFailed,
     #[error("Failed to recover from an unsuccessful operation!")]
     RecoveryFailed,
