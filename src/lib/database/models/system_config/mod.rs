@@ -17,3 +17,10 @@ pub struct SystemConfig {
     pub deleted_at: Option<SystemTime>,
     pub hidden_at: Option<SystemTime>,
 }
+
+// #[derive(Insertable, Deserialize)]
+// #[diesel(table_name = system_configs)]
+// pub struct SystemConfigSeed<'a> {
+//     name: &'a str,
+//     config: &'a serde_json::Value,
+// }
