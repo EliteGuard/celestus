@@ -3,7 +3,7 @@ use celestus::database::Database;
 
 fn main() -> Result<()> {
     let mut db = Database::new();
-    db.prepare()?;
+    db.connect_and_init()?;
 
     Ok(())
 }

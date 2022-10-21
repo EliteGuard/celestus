@@ -23,7 +23,7 @@ impl Database {
         }
     }
 
-    pub fn prepare(&mut self) -> Result<bool, DatabaseError> {
+    pub fn connect_and_init(&mut self) -> Result<bool, DatabaseError> {
         if !self.connect() {
             return Err(DatabaseError::ConnectFailed);
         }
@@ -37,7 +37,19 @@ impl Database {
 
     fn connect(&mut self) -> bool {
         dotenv().ok();
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+        let url_prefix = env::var("DATABASE_URL_PREFIX").expect("DATABASE_URL_PREFIX must be set");
+        let user = env::var("DATABASE_USER").expect("DATABASE_USER must be set");
+        let password = env::var("DATABASE_PASSWORD").expect("DATABASE_PASSWORD must be set");
+        let host = env::var("DATABASE_HOST").expect("DATABASE_HOST must be set");
+        let port = env::var("DATABASE_PORT").expect("DATABASE_PORT must be set");
+        let name = env::var("DATABASE_NAME").expect("DATABASE_NAME must be set");
+
+        let database_url = format!(
+            "{}://{}:{}@{}:{}/{}",
+            url_prefix, user, password, host, port, name
+        );
+        // postgres://postgres:Tatkomil0@localhost:5433/celestus
 
         match PgConnection::establish(&database_url) {
             Ok(conn) => self.connection = Some(conn),
