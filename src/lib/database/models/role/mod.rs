@@ -24,7 +24,7 @@ pub struct Role {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub config: serde_json::Value,
+    pub config: Option<serde_json::Value>,
     pub role_group_id: Option<Uuid>,
     pub created_at: SystemTime,
     pub updated_at: Option<SystemTime>,

@@ -5,15 +5,15 @@ pub mod schema;
 
 use anyhow::Result;
 use chrono::{NaiveDateTime, Utc};
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::{insert_into, pg::PgConnection};
 use std::{env, fs, path::Path};
 
 use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
 
-// use models::system_config::{SystemConfig, SystemConfigSeed};
+use models::system_config::{SystemConfig, SystemConfigSeed};
 
 pub struct Database {
     seeded: bool,
@@ -100,19 +100,22 @@ impl Database {
             &self.consts.SYSTEM_CONFIG_SEED_FILE_PATH
         ));
 
-        println!("{}", json_file_contents);
-
-        // let system_config_seeds =
-        //     serde_json::from_str::<Vec<SystemConfigSeed>>(&json_file_contents).expect(&format!(
-        //         "JSON in {} is invalid!",
-        //         MODEL_SYSTEM_CONFIG_SEED_FILE_PATH
-        //     ));
+        let system_config_seeds =
+            serde_json::from_str::<Vec<SystemConfigSeed>>(&json_file_contents).expect(&format!(
+                "JSON array in {} is invalid!",
+                self.consts.SYSTEM_CONFIG_SEED_FILE_PATH
+            ));
 
         use schema::system_configs::dsl::*;
-
-        // let inserted_system_configs = insert_into(system_configs)
-        //     .values(&system_config_seeds)
-        //     .get_results(self.connection)?;
+        if let Some(conn) = &mut self.connection {
+            diesel::insert_into(system_configs)
+                .values(&system_config_seeds)
+                .execute(conn)
+                .unwrap();
+        } else {
+            panic!("WROOONG!");
+        };
+        // let inserted_system_configs =
 
         Ok(self)
     }

@@ -21,7 +21,7 @@ dotenvy = "0.15.5"
 env_logger = "0.9.1"
 jsonwebtoken = "8.1.1"
 log = "0.4.17"
-serde = { version = "^1", features = ["derive"] }
+serde = "1.0.146"
 serde_derive = "1.0.145"
 serde_json = {version = "1.0.86", features = ["preserve_order"] }
 thiserror = "1.0.37"
