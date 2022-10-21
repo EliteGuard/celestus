@@ -50,7 +50,6 @@ impl Database {
             "{}://{}:{}@{}:{}/{}",
             url_prefix, user, password, host, port, name
         );
-        // postgres://postgres:Tatkomil0@localhost:5433/celestus
 
         match PgConnection::establish(&database_url) {
             Ok(conn) => self.connection = Some(conn),
