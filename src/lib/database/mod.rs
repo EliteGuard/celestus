@@ -1,5 +1,6 @@
 use ::thiserror::Error;
 use anyhow::Result;
+use chrono::Utc;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;
@@ -60,6 +61,8 @@ impl Database {
     }
 
     fn populate(&mut self) -> bool {
+        let now = Utc::now().naive_utc();
+
         false
     }
 }

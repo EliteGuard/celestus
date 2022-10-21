@@ -4,6 +4,7 @@ diesel::table! {
     feature_flags (id) {
         id -> Uuid,
         name -> Varchar,
+        description -> Nullable<Varchar>,
         config -> Nullable<Jsonb>,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,

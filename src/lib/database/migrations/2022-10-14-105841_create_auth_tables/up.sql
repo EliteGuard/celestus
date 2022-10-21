@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS public.system_configs (
 CREATE TABLE IF NOT EXISTS public.feature_flags (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name character varying NOT NULL,
+    description character varying,
     config jsonb,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone,

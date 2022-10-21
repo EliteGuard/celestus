@@ -10,5 +10,9 @@
             "username": "postgres",
             "password": "Tatkomil0"
         }
+    ],
+    "cSpell.words": [
+        "dotenvy",
+        "thiserror"
     ]
 }
