@@ -5,7 +5,7 @@ pub mod models;
 pub mod schema;
 
 use anyhow::{Error, Result};
-use chrono::{NaiveDateTime, Utc};
+use chrono::{NaiveDateTime};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -75,15 +75,19 @@ impl Database {
     }
 
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
+        
+        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
+        RoleGroup::try_to_seed(&mut conn, &self.consts.role_group_seed_file_path);
+
         //let now = Utc::now().naive_utc();
 
-        self.seeded = match self.is_seeded() {
-            Ok(result) => result,
-            Err(err) => {
-                error!("{}", err.to_string());
-                return Err(DatabaseError::SeedFailed);
-            }
-        };
+        // self.seeded = match self.is_seeded() {
+        //     Ok(result) => result,
+        //     Err(err) => {
+        //         error!("{}", err.to_string());
+        //         return Err(DatabaseError::SeedFailed);
+        //     }
+        // };
 
         // self.seed_system_configs(&now)?;
 
@@ -91,11 +95,11 @@ impl Database {
         Ok(self)
     }
 
-    fn is_seeded(&mut self) -> Result<bool, SeedDatabaseError> {
-        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
-        RoleGroup::try_to_seed(&mut conn)?;
-        Ok(true)
-    }
+    // fn is_seeded(&mut self) -> Result<bool, SeedDatabaseError> {
+    //     let mut conn = self.pool.as_ref().unwrap().get().unwrap();
+    //     RoleGroup::try_to_seed(&mut conn)?;
+    //     Ok(true)
+    // }
 
     fn seed_system_configs(
         &mut self,

@@ -1,12 +1,13 @@
 use std::time::SystemTime;
 
-use anyhow::Result;
-use diesel::pg::sql_types::Jsonb;
-use diesel::{prelude::*, AsExpression, FromSqlRow};
-use log::{error, info};
+use anyhow::{Result};
+use diesel::{prelude::* };
+use log::{error};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use uuid::Uuid;
 
+use crate::database::helpers::{HasName, is_data_secure, seed_file_check};
 use crate::database::{
     errors::{DatabaseError, SeedDatabaseError},
     schema::role_groups,
@@ -34,6 +35,26 @@ const USER_ROLE_GROUP_NAME: &str = "USER";
 pub struct RoleGroupConfig {
     level: Option<i32>,
 }
+
+#[derive(Serialize, Deserialize, Insertable, Debug)]
+#[diesel(table_name = role_groups)]
+pub struct RoleGroupForm {
+    name: String,
+    config: Option<serde_json::Value>,
+}
+
+impl HasName for RoleGroup {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl HasName for RoleGroupForm {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
 impl RoleGroup {
     pub fn get_all_role_groups(
         connection: &mut PgConnection,
@@ -53,6 +74,13 @@ impl RoleGroup {
         connection: &mut PgConnection,
         role_groups: &Vec<RoleGroup>,
     ) -> Result<Vec<RoleGroup>, DatabaseError> {
+
+        let untouchables: Vec<RoleGroupForm> = RoleGroup::get_predefined();
+        if let Err(err) = is_data_secure(&untouchables, role_groups) {
+            error!("{}", err);
+            return Err(DatabaseError::DataCorruptionAttempt);
+        }
+
         match diesel::insert_into(role_groups::table)
             .values(role_groups)
             .get_results(connection)
@@ -72,7 +100,7 @@ impl RoleGroup {
         Ok(vec![])
     }
 
-    pub fn try_to_seed(connection: &mut PgConnection) -> Result<(), SeedDatabaseError> {
+    pub fn try_to_seed(connection: &mut PgConnection, seed_file_path: &String) -> Result<(), SeedDatabaseError> {
         let any_rows = match RoleGroup::get_all_role_groups(connection) {
             Ok(rows) => rows,
             Err(err) => {
@@ -82,6 +110,8 @@ impl RoleGroup {
         };
 
         if any_rows.len() == 0 {
+            let predefined = RoleGroup::get_predefined();
+            seed_file_check(seed_file_path, predefined);
             RoleGroup::insert(connection, &any_rows);
         } else {
             RoleGroup::update(connection, &any_rows);
@@ -90,21 +120,10 @@ impl RoleGroup {
         Ok(())
     }
 
-    pub fn is_data_secure(candidates: Vec<RoleGroup>) -> Result<bool, DatabaseError> {
-        let untouchables: Vec<&str> = vec![
-            SYSTEM_ROLE_GROUP_NAME,
-            ADMIN_ROLE_GROUP_NAME,
-            CLIENT_ROLE_GROUP_NAME,
-            USER_ROLE_GROUP_NAME,
-        ];
-
-        for untouchable in untouchables.iter() {
-            let found = candidates.iter().find(|&c| &&c.name[..] == untouchable);
-            if let Some(rg) = found {
-                info!("{:?}", rg);
-                // let config: RoleGroupConfig = serde_json::from_value(rg.config.unwrap()).unwrap();
-            }
-        }
-        Ok(true)
+    fn get_predefined() -> Vec<RoleGroupForm> {
+        vec![
+            RoleGroupForm{name:SYSTEM_ROLE_GROUP_NAME.to_string(), config: Some(json!({"level":10000})) },
+        ]
     }
+    
 }

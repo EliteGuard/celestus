@@ -1,28 +1,53 @@
-macro_rules! impl_jsonb_boilerplate {
-    ($name: ident) => {
-        impl ::diesel::deserialize::FromSql<::diesel::sql_types::Jsonb, ::diesel::sql_types::Pg>
-            for $name
-        {
-            fn from_sql(bytes: Option<&[u8]>) -> diesel::deserialize::Result<Self> {
-                let value = <::serde_json::Value as ::diesel::deserialize::FromSql<
-                    ::diesel::sql_types::Jsonb,
-                    ::diesel::pg::Pg,
-                >>::from_sql(bytes)?;
-                Ok(::serde_json::from_value(value)?)
-            }
-        }
+use anyhow::Error;
+use log::info;
+use serde::{Serialize, Deserialize};
+use std::{fmt::Debug, fs::{OpenOptions, self}, path::Path};
+use std::io::Write;
+use super::errors::DatabaseError;
 
-        impl ::diesel::serialize::ToSql<::diesel::sql_types::Jsonb, ::diesel::pg::Pg> for $name {
-            fn to_sql<W: ::std::io::Write>(
-                &self,
-                out: &mut ::diesel::serialize::Output<W, Pg>,
-            ) -> ::diesel::serialize::Result {
-                let value = ::serde_json::to_value(self)?;
-                <::serde_json::Value as ::diesel::serialize::ToSql<
-                    ::diesel::sql_types::Jsonb,
-                    ::diesel::pg::Pg,
-                >>::to_sql(out)
-            }
+pub trait HasName{
+    fn get_name(&self) -> String;
+}
+
+pub fn is_data_secure<Secure: Debug+HasName, Candidate: Debug+HasName>(consts: &Vec<Secure>, candidates: &Vec<Candidate>) -> Result<bool, DatabaseError> {
+    for secure in consts.iter() {
+        let found = candidates.iter().find(|&c| c.get_name() == secure.get_name());
+        if let Some(rg) = found {
+            info!("{:?}", rg);
+            // let config: RoleGroupConfig = serde_json::from_value(rg.config.unwrap()).unwrap();
         }
+    }
+    Ok(true)
+}
+
+pub fn seed_file_check<T: Serialize + for<'a> Deserialize<'a>>(path: &String, predefined: Vec<T>) {
+    let file_path = Path::new(&path);
+    let json_file_contents = match fs::read_to_string(file_path).ok() {
+        Some(contents) => contents,
+        None => {
+            info!("The file {} is not found! Will try to create it...", path);
+            "".to_owned()
+        },
     };
+
+    let seeds = match serde_json::from_str::<Vec<T>>(&json_file_contents).ok(){
+        Some(res) => res,
+        None => {
+            info!("JSON array in {} is invalid! Recovering...", path);
+            vec![]
+        },
+    };
+
+    info!("Found {}/{} seeds in {}", seeds.len(), predefined.len(), path);
+
+    if seeds.len() != predefined.len() {
+        info!("Overwriting {}", path);
+        let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&path)
+        .expect(format!("Failed to create the file {}", &path).as_str());
+        let text = serde_json::to_string(&predefined).unwrap();
+        writeln!(file, "{}", text).expect(&format!("Failed to write to file {}", &path));
+    }
 }
