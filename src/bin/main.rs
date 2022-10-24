@@ -4,8 +4,10 @@ use anyhow::Result;
 use celestus::database::Database;
 use celestus::utils::environment::Environment;
 use dotenvy::dotenv;
-
+use log::info;
+ 
 fn main() -> Result<()> {
+    env_logger::init();
     dotenv().expect("No .env file found!");
 
     let env = env::var("HOST_ENVIRONMENT").expect("Unknown environment! Environment variable HOST_ENVIRONMENT must be set!");
@@ -15,7 +17,7 @@ fn main() -> Result<()> {
         val => panic!("Unknown value \"{}\" for environment variable HOST_ENVIRONMENT!", val),
     };
 
-    println!("Running on {}", env);
+    info!("Running on {}", env);
 
     let mut db = Database::new(environment);
     db.connect_and_init()?;

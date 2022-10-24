@@ -8,6 +8,7 @@ use chrono::{NaiveDateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::{env, fs, path::Path};
+use log::{info, error};
 
 use crate::utils::environment::Environment;
 use consts::Consts;
@@ -40,6 +41,7 @@ impl Database {
 
     pub fn connect_and_init(&mut self) -> Result<(), DatabaseError> {
         self.connect()?;
+        info!("Successfully connected to database!");
         self.seed()?;
 
         Ok(())
@@ -50,7 +52,8 @@ impl Database {
             return Ok(self);
         }
 
-        let database_url = match self.generate_database_url() {
+        let database_url = match self.generate_database_url()
+         {
             Ok(res) => res,
             Err(_) => return Err(DatabaseError::URLGenerationFailed),
         };
@@ -58,7 +61,7 @@ impl Database {
         match PgConnection::establish(&database_url) {
             Ok(conn) => self.connection = Some(conn),
             Err(e) => {
-                println!("Error connecting to the PG database!: {}", e.to_string());
+                error!("Error connecting to the PG database!: {}", e.to_string());
                 return Err(DatabaseError::ConnectFailed);
             }
         }
