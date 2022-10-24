@@ -1,27 +1,30 @@
 mod consts;
 mod errors;
+mod helpers;
 pub mod models;
 pub mod schema;
 
-use anyhow::{Result, Error};
+use anyhow::{Error, Result};
 use chrono::{NaiveDateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
+use log::{error, info};
 use std::{env, fs, path::Path};
-use log::{info, error};
 
-use crate::{utils::environment::Environment};
+use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
 
-use models::system_config::{SystemConfigSeed};
+use models::system_config::SystemConfigSeed;
 
+use self::errors::SeedDatabaseError;
 use self::models::role_group::RoleGroup;
 
 pub struct Database {
     seeded: bool,
     ready: bool,
-    connection: Option<PgConnection>,
+    pool: Option<Pool<ConnectionManager<PgConnection>>>,
     consts: Consts,
     environment: Environment,
 }
@@ -35,7 +38,7 @@ impl Database {
         Self {
             seeded: false,
             ready: false,
-            connection: None,
+            pool: None,
             consts,
             environment,
         }
@@ -50,18 +53,18 @@ impl Database {
     }
 
     fn connect(&mut self) -> Result<&mut Self, DatabaseError> {
-        if !self.connection.is_none() {
+        if self.pool.is_some() {
             return Ok(self);
         }
 
-        let database_url = match self.generate_database_url()
-         {
+        let database_url = match self.generate_database_url() {
             Ok(res) => res,
             Err(_) => return Err(DatabaseError::URLGenerationFailed),
         };
 
-        match PgConnection::establish(&database_url) {
-            Ok(conn) => self.connection = Some(conn),
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        match Pool::builder().build(manager) {
+            Ok(pool) => self.pool = Some(pool),
             Err(e) => {
                 error!("Error connecting to the PG database!: {}", e.to_string());
                 return Err(DatabaseError::ConnectFailed);
@@ -74,8 +77,13 @@ impl Database {
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
         //let now = Utc::now().naive_utc();
 
-        self.seeded = self.is_seeded();
-
+        self.seeded = match self.is_seeded() {
+            Ok(result) => result,
+            Err(err) => {
+                error!("{}", err.to_string());
+                return Err(DatabaseError::SeedFailed);
+            }
+        };
 
         // self.seed_system_configs(&now)?;
 
@@ -83,10 +91,10 @@ impl Database {
         Ok(self)
     }
 
-    fn is_seeded(&mut self) -> bool {
-        let mut conn = self.connection.as_ref().unwrap();
-        RoleGroup::is_seeded(&mut conn);
-        false
+    fn is_seeded(&mut self) -> Result<bool, SeedDatabaseError> {
+        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
+        RoleGroup::try_to_seed(&mut conn)?;
+        Ok(true)
     }
 
     fn seed_system_configs(
@@ -109,21 +117,19 @@ impl Database {
             ));
 
         use schema::system_configs::dsl::*;
-        if let Some(conn) = &mut self.connection {
-            diesel::insert_into(system_configs)
-                .values(&system_config_seeds)
-                .execute(conn)
-                .unwrap();
-        } else {
-            panic!("WROOONG!");
-        };
+        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
+        diesel::insert_into(system_configs)
+            .values(&system_config_seeds)
+            .execute(&mut conn)
+            .unwrap();
         // let inserted_system_configs =
 
         Ok(self)
     }
 
     fn generate_database_url(&self) -> Result<String, Error> {
-        let url_prefix = env::var("DATABASE_URL_PREFIX").expect("environment variable DATABASE_URL_PREFIX must be set");
+        let url_prefix = env::var("DATABASE_URL_PREFIX")
+            .expect("environment variable DATABASE_URL_PREFIX must be set");
         let user =
             env::var("DATABASE_USER").expect("environment variable DATABASE_USER must be set");
         let password = env::var("DATABASE_PASSWORD")
@@ -137,7 +143,8 @@ impl Database {
 
         let full_url = format!(
             "{}://{}:{}@{}:{}/{}",
-            url_prefix, user, password, host, port, name);
+            url_prefix, user, password, host, port, name
+        );
         Ok(full_url)
     }
 }
