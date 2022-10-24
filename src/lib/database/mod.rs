@@ -10,11 +10,13 @@ use diesel::prelude::*;
 use std::{env, fs, path::Path};
 use log::{info, error};
 
-use crate::utils::environment::Environment;
+use crate::{utils::environment::Environment};
 use consts::Consts;
 use errors::DatabaseError;
 
 use models::system_config::{SystemConfigSeed};
+
+use self::models::role_group::RoleGroup;
 
 pub struct Database {
     seeded: bool,
@@ -72,10 +74,19 @@ impl Database {
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
         //let now = Utc::now().naive_utc();
 
+        self.seeded = self.is_seeded();
+
+
         // self.seed_system_configs(&now)?;
 
         self.seeded = true;
         Ok(self)
+    }
+
+    fn is_seeded(&mut self) -> bool {
+        let mut conn = self.connection.as_ref().unwrap();
+        RoleGroup::is_seeded(&mut conn);
+        false
     }
 
     fn seed_system_configs(
