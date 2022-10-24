@@ -3,7 +3,7 @@ mod errors;
 pub mod models;
 pub mod schema;
 
-use anyhow::Result;
+use anyhow::{Result, Error};
 use chrono::{NaiveDateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -13,7 +13,7 @@ use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
 
-use models::system_config::{SystemConfig, SystemConfigSeed};
+use models::system_config::{SystemConfigSeed};
 
 pub struct Database {
     seeded: bool,
@@ -39,7 +39,8 @@ impl Database {
     }
 
     pub fn connect_and_init(&mut self) -> Result<(), DatabaseError> {
-        self.connect()?.seed()?;
+        self.connect()?;
+        self.seed()?;
 
         Ok(())
     }
@@ -49,23 +50,10 @@ impl Database {
             return Ok(self);
         }
 
-        let url_prefix = env::var("DATABASE_URL_PREFIX")
-            .expect("environment variable DATABASE_URL_PREFIX must be set");
-        let user =
-            env::var("DATABASE_USER").expect("environment variable DATABASE_USER must be set");
-        let password = env::var("DATABASE_PASSWORD")
-            .expect("environment variable DATABASE_PASSWORD must be set");
-        let host =
-            env::var("DATABASE_HOST").expect("environment variable DATABASE_HOST must be set");
-        let port =
-            env::var("DATABASE_PORT").expect("environment variable DATABASE_PORT must be set");
-        let name =
-            env::var("DATABASE_NAME").expect("environment variable DATABASE_NAME must be set");
-
-        let database_url = format!(
-            "{}://{}:{}@{}:{}/{}",
-            url_prefix, user, password, host, port, name
-        );
+        let database_url = match self.generate_database_url() {
+            Ok(res) => res,
+            Err(_) => return Err(DatabaseError::URLGenerationFailed),
+        };
 
         match PgConnection::establish(&database_url) {
             Ok(conn) => self.connection = Some(conn),
@@ -79,9 +67,9 @@ impl Database {
     }
 
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
-        let now = Utc::now().naive_utc();
+        //let now = Utc::now().naive_utc();
 
-        self.seed_system_configs(&now)?;
+        // self.seed_system_configs(&now)?;
 
         self.seeded = true;
         Ok(self)
@@ -91,19 +79,19 @@ impl Database {
         &mut self,
         date_time_now: &NaiveDateTime,
     ) -> Result<&mut Self, DatabaseError> {
-        let file_path = Path::new(&self.consts.SYSTEM_CONFIG_SEED_FILE_PATH);
+        let file_path = Path::new(&self.consts.system_config_seed_file_path);
         let json_file_contents = fs::read_to_string(file_path).expect(&format!(
             "The file {} cannot be found or read!\n
             Make sure you are running in the intended environment as needed:\n
             1) Dev - from the project's root directory (out of /src)\n
             2) Others - from the home directory (where Celestus is installed)\n",
-            &self.consts.SYSTEM_CONFIG_SEED_FILE_PATH
+            &self.consts.system_config_seed_file_path
         ));
 
         let system_config_seeds =
             serde_json::from_str::<Vec<SystemConfigSeed>>(&json_file_contents).expect(&format!(
                 "JSON array in {} is invalid!",
-                self.consts.SYSTEM_CONFIG_SEED_FILE_PATH
+                self.consts.system_config_seed_file_path
             ));
 
         use schema::system_configs::dsl::*;
@@ -118,5 +106,24 @@ impl Database {
         // let inserted_system_configs =
 
         Ok(self)
+    }
+
+    fn generate_database_url(&self) -> Result<String, Error> {
+        let url_prefix = env::var("DATABASE_URL_PREFIX").expect("environment variable DATABASE_URL_PREFIX must be set");
+        let user =
+            env::var("DATABASE_USER").expect("environment variable DATABASE_USER must be set");
+        let password = env::var("DATABASE_PASSWORD")
+            .expect("environment variable DATABASE_PASSWORD must be set");
+        let host =
+            env::var("DATABASE_HOST").expect("environment variable DATABASE_HOST must be set");
+        let port =
+            env::var("DATABASE_PORT").expect("environment variable DATABASE_PORT must be set");
+        let name =
+            env::var("DATABASE_NAME").expect("environment variable DATABASE_NAME must be set");
+
+        let full_url = format!(
+            "{}://{}:{}@{}:{}/{}",
+            url_prefix, user, password, host, port, name);
+        Ok(full_url)
     }
 }

@@ -3,23 +3,23 @@ const C_SYSTEM_CONFIG_SEED_FILE_PATH_DEV: &str =
     "./src/lib/database/models/system_config/data/seed.json";
 
 pub struct Consts {
-    pub ENVIRONMENT: Environment,
-    pub SYSTEM_CONFIG_SEED_FILE_PATH: String,
+    pub environment: Environment,
+    pub system_config_seed_file_path: String,
 }
 
 use crate::utils::environment::Environment;
 
 impl Consts {
     pub fn new(environment: Environment) -> Self {
-        let ENVIRONMENT = environment;
-        let SYSTEM_CONFIG_SEED_FILE_PATH = match environment {
+        let environment = environment;
+        let system_config_seed_file_path = match environment {
             Environment::Prod => C_SYSTEM_CONFIG_SEED_FILE_PATH.to_string(),
             Environment::Dev => C_SYSTEM_CONFIG_SEED_FILE_PATH_DEV.to_string(),
         };
 
         Self {
-            ENVIRONMENT,
-            SYSTEM_CONFIG_SEED_FILE_PATH,
+            environment,
+            system_config_seed_file_path,
         }
     }
 }

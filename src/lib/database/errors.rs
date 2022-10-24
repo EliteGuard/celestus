@@ -3,7 +3,9 @@ use ::thiserror::Error;
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum DatabaseError {
-    #[error("Failed to connect to database!")]
+    #[error("Failed to generate database URL!")]
+    URLGenerationFailed,
+    #[error("Failed to connect to database! Please check credentials in the .env file and try again!")]
     ConnectFailed,
     #[error("Failed to seed data!")]
     SeedFailed,
