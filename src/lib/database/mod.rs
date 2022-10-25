@@ -1,3 +1,4 @@
+mod connection;
 mod consts;
 mod errors;
 mod helpers;
@@ -5,55 +6,50 @@ pub mod models;
 pub mod schema;
 
 use anyhow::{Error, Result};
-use chrono::{NaiveDateTime};
 use diesel::pg::PgConnection;
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection, R2D2Connection};
 use log::{error, info};
-use std::{env, fs, path::Path};
+use std::env;
 
 use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
 
-use models::system_config::SystemConfigSeed;
-
-use self::errors::SeedDatabaseError;
 use self::models::role_group::RoleGroup;
 
 pub struct Database {
     seeded: bool,
     ready: bool,
     pool: Option<Pool<ConnectionManager<PgConnection>>>,
+    connection: Option<PooledConnection<ConnectionManager<diesel::PgConnection>>>,
     consts: Consts,
-    environment: Environment,
 }
 
 impl Database {
-    pub fn new(environment: Environment) -> Self {
-        // dotenv().ok();
-
+    pub fn new(environment: &Environment) -> Self {
         let consts = Consts::new(environment);
 
         Self {
             seeded: false,
             ready: false,
             pool: None,
+            connection: None,
             consts,
-            environment,
         }
     }
 
     pub fn connect_and_init(&mut self) -> Result<(), DatabaseError> {
         self.connect()?;
-        info!("Successfully connected to database!");
         self.seed()?;
+
+        self.ready = true;
+        info!("Database is ready for use!");
 
         Ok(())
     }
 
     fn connect(&mut self) -> Result<&mut Self, DatabaseError> {
-        if self.pool.is_some() {
+        if self.pool.as_ref().is_some() {
             return Ok(self);
         }
 
@@ -62,11 +58,26 @@ impl Database {
             Err(_) => return Err(DatabaseError::URLGenerationFailed),
         };
 
-        let manager = ConnectionManager::<PgConnection>::new(database_url);
-        match Pool::builder().build(manager) {
+        match Pool::builder().build(ConnectionManager::<PgConnection>::new(database_url)) {
             Ok(pool) => self.pool = Some(pool),
-            Err(e) => {
-                error!("Error connecting to the PG database!: {}", e.to_string());
+            Err(err) => {
+                error!("{}", err);
+                return Err(DatabaseError::PoolCreationFailed);
+            }
+        }
+
+        match self.pool.as_ref().unwrap().get() {
+            Ok(connection) => self.connection = Some(connection),
+            Err(err) => {
+                error!("Error connecting to the PG database!: {}", err);
+                return Err(DatabaseError::ConnectFailed);
+            }
+        };
+
+        match self.connection.as_mut().unwrap().ping() {
+            Ok(_) => info!("Successfully connected to database!"),
+            Err(err) => {
+                error!("Error connecting to the PG database!: {}", err);
                 return Err(DatabaseError::ConnectFailed);
             }
         }
@@ -75,9 +86,14 @@ impl Database {
     }
 
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
-        
-        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
-        RoleGroup::try_to_seed(&mut conn, &self.consts.role_group_seed_file_path);
+        let conn = self.connection.as_mut().unwrap();
+        match RoleGroup::try_to_seed(conn, &self.consts.role_group_seed_file_path) {
+            Ok(_) => info!("Successfully seeded role_groups!"),
+            Err(err) => {
+                error!("{}", err);
+                return Err(DatabaseError::SeedFailed);
+            }
+        };
 
         //let now = Utc::now().naive_utc();
 
@@ -101,35 +117,35 @@ impl Database {
     //     Ok(true)
     // }
 
-    fn seed_system_configs(
-        &mut self,
-        date_time_now: &NaiveDateTime,
-    ) -> Result<&mut Self, DatabaseError> {
-        let file_path = Path::new(&self.consts.system_config_seed_file_path);
-        let json_file_contents = fs::read_to_string(file_path).expect(&format!(
-            "The file {} cannot be found or read!\n
-            Make sure you are running in the intended environment as needed:\n
-            1) Dev - from the project's root directory (out of /src)\n
-            2) Others - from the home directory (where Celestus is installed)\n",
-            &self.consts.system_config_seed_file_path
-        ));
+    // fn seed_system_configs(
+    //     &mut self,
+    //     date_time_now: &NaiveDateTime,
+    // ) -> Result<&mut Self, DatabaseError> {
+    //     let file_path = Path::new(&self.consts.system_config_seed_file_path);
+    //     let json_file_contents = fs::read_to_string(file_path).expect(&format!(
+    //         "The file {} cannot be found or read!\n
+    //         Make sure you are running in the intended environment as needed:\n
+    //         1) Dev - from the project's root directory (out of /src)\n
+    //         2) Others - from the home directory (where Celestus is installed)\n",
+    //         &self.consts.system_config_seed_file_path
+    //     ));
 
-        let system_config_seeds =
-            serde_json::from_str::<Vec<SystemConfigSeed>>(&json_file_contents).expect(&format!(
-                "JSON array in {} is invalid!",
-                self.consts.system_config_seed_file_path
-            ));
+    //     let system_config_seeds =
+    //         serde_json::from_str::<Vec<SystemConfigSeed>>(&json_file_contents).expect(&format!(
+    //             "JSON array in {} is invalid!",
+    //             self.consts.system_config_seed_file_path
+    //         ));
 
-        use schema::system_configs::dsl::*;
-        let mut conn = self.pool.as_ref().unwrap().get().unwrap();
-        diesel::insert_into(system_configs)
-            .values(&system_config_seeds)
-            .execute(&mut conn)
-            .unwrap();
-        // let inserted_system_configs =
+    //     use schema::system_configs::dsl::*;
+    //     let mut conn = self.pool.as_ref().unwrap().get().unwrap();
+    //     diesel::insert_into(system_configs)
+    //         .values(&system_config_seeds)
+    //         .execute(&mut conn)
+    //         .unwrap();
+    //     // let inserted_system_configs =
 
-        Ok(self)
-    }
+    //     Ok(self)
+    // }
 
     fn generate_database_url(&self) -> Result<String, Error> {
         let url_prefix = env::var("DATABASE_URL_PREFIX")

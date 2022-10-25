@@ -5,6 +5,8 @@ use ::thiserror::Error;
 pub enum DatabaseError {
     #[error("Failed to generate database URL!")]
     URLGenerationFailed,
+    #[error("Failed to create database connection pool!")]
+    PoolCreationFailed,
     #[error(
         "Failed to connect to database! Please check credentials in the .env file and try again!"
     )]
