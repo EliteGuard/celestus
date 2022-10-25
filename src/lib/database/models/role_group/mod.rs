@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::database::helpers::{HasName, is_data_secure, seed_file_check};
+use crate::database::helpers::{HasName, is_data_secure, seed_file_check, HasConfig};
 use crate::database::{
     errors::{DatabaseError, SeedDatabaseError},
     schema::role_groups,
@@ -33,7 +33,7 @@ const USER_ROLE_GROUP_NAME: &str = "USER";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RoleGroupConfig {
-    level: Option<i32>,
+    level: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Insertable, Debug)]
@@ -48,10 +48,20 @@ impl HasName for RoleGroup {
         self.name.clone()
     }
 }
+impl HasConfig for RoleGroup {
+    fn get_config(&self) -> Option<serde_json::Value> {
+        self.config
+    }
+}
 
 impl HasName for RoleGroupForm {
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+}
+impl HasConfig for RoleGroupForm {
+    fn get_config(&self) -> Option<serde_json::Value> {
+        self.config
     }
 }
 
@@ -76,7 +86,9 @@ impl RoleGroup {
     ) -> Result<Vec<RoleGroup>, DatabaseError> {
 
         let untouchables: Vec<RoleGroupForm> = RoleGroup::get_predefined();
-        if let Err(err) = is_data_secure(&untouchables, role_groups) {
+        if let Err(err) = is_data_secure::<RoleGroupForm, RoleGroup, RoleGroupConfig>(
+            &untouchables, role_groups
+        ) {
             error!("{}", err);
             return Err(DatabaseError::DataCorruptionAttempt);
         }
