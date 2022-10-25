@@ -1,1 +1,1 @@
-[{"name":"SYSTEM","confg":{"level":10000}}]
+[{"name":"SYSTEM","config":{"level":4294967295}},{"name":"ADMIN","config":{"level":100000}},{"name":"CLIENT","config":{"level":10000}},{"name":"USER","config":{"level":1000}}]

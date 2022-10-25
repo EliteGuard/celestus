@@ -1,5 +1,5 @@
-use super::errors::DatabaseError;
-use log::info;
+use super::errors::{DatabaseError, SeedDatabaseError};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::{
@@ -16,14 +16,21 @@ pub trait HasConfig {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value>;
 }
 
-pub fn is_data_secure<Secure, Candidate, ConfigType>(
+pub trait Predefined<'a, Model>
+where
+    Model: Serialize + Deserialize<'a>,
+{
+    fn get_predefined() -> Vec<Model>;
+}
+
+pub fn is_data_secure<'a, Secure, Candidate, ConfigType>(
     consts: &Vec<Secure>,
     candidates: &Vec<Candidate>,
 ) -> Result<bool, DatabaseError>
 where
-    Secure: Debug + HasName + HasConfig,
-    Candidate: Debug + HasName + HasConfig,
-    ConfigType: Serialize + for<'a> Deserialize<'a>,
+    Secure: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    Candidate: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    ConfigType: Debug + Serialize + Deserialize<'a>,
 {
     for secure in consts.iter() {
         let found = candidates
@@ -39,7 +46,15 @@ where
     Ok(true)
 }
 
-pub fn seed_file_check<T: Serialize + for<'a> Deserialize<'a>>(path: &String, predefined: Vec<T>) {
+pub fn seed_file_check<'a, PredefinedSeed, CandidateSeed, SeedConfig>(
+    path: &String,
+    predefined: Vec<PredefinedSeed>,
+) -> Result<(), SeedDatabaseError>
+where
+    PredefinedSeed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    CandidateSeed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    SeedConfig: Debug + Serialize + Deserialize<'a>,
+{
     let file_path = Path::new(&path);
     let json_file_contents = match fs::read_to_string(file_path).ok() {
         Some(contents) => contents,
@@ -49,7 +64,7 @@ pub fn seed_file_check<T: Serialize + for<'a> Deserialize<'a>>(path: &String, pr
         }
     };
 
-    let seeds = match serde_json::from_str::<Vec<T>>(&json_file_contents).ok() {
+    let seeds = match serde_json::from_str::<Vec<CandidateSeed>>(&json_file_contents).ok() {
         Some(res) => res,
         None => {
             info!("JSON array in {} is invalid! Recovering...", path);
@@ -64,7 +79,16 @@ pub fn seed_file_check<T: Serialize + for<'a> Deserialize<'a>>(path: &String, pr
         path
     );
 
-    if seeds.len() < predefined.len() {
+    let secure =
+        match is_data_secure::<PredefinedSeed, CandidateSeed, SeedConfig>(&predefined, &seeds) {
+            Ok(result) => result,
+            Err(err) => {
+                error!("{}", err);
+                return Err(SeedDatabaseError::SeedCorruptionAttempt);
+            }
+        };
+
+    if seeds.len() < predefined.len() || secure == false {
         info!("Overwriting {}", path);
         let mut file = OpenOptions::new()
             .write(true)
@@ -74,4 +98,10 @@ pub fn seed_file_check<T: Serialize + for<'a> Deserialize<'a>>(path: &String, pr
         let text = serde_json::to_string(&predefined).unwrap();
         writeln!(file, "{}", text).expect(&format!("Failed to write to file {}", &path));
     }
+
+    Ok(())
+}
+
+pub fn get_max_level() -> u32 {
+    u32::MAX
 }
