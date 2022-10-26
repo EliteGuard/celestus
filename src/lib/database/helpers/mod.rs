@@ -1,15 +1,13 @@
 pub mod security;
 
-use super::errors::{DatabaseError, SeedDatabaseError};
+use super::errors::SeedDatabaseError;
 use anyhow::Result;
-use log::{error, info, warn};
+use log::{error, info};
 use security::is_data_secure;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::borrow::{Borrow, BorrowMut};
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, vec};
 use std::{fmt::Debug, fs::OpenOptions};
 
 pub trait HasName {
@@ -47,9 +45,23 @@ where
         path
     );
 
+    // let secure2 = match get_secure_data::<Seed, SeedConfig>(
+    //     &mut seeds.borrow_mut(),
+    //     predefined,
+    //     exceptionals,
+    //     false,
+    // ) {
+    //     Ok(result) => result,
+    //     Err(err) => {
+    //         error!("{}", err);
+    //         return Err(SeedDatabaseError::SeedCorruptionAttempt);
+    //     }
+    // };
+    // println!("secure2->{:?}", secure2);
+
     let secure = match is_data_secure::<Seed, SeedConfig>(
-        predefined,
         &seeds.as_ref().borrow(),
+        predefined,
         exceptionals,
     ) {
         Ok(result) => result,
@@ -58,6 +70,21 @@ where
             return Err(SeedDatabaseError::SeedCorruptionAttempt);
         }
     };
+    println!("secure->{:?}", secure);
+
+    // let secure3 = match get_secure_data::<Seed, SeedConfig>(
+    //     &mut seeds.borrow_mut(),
+    //     predefined,
+    //     exceptionals,
+    //     true,
+    // ) {
+    //     Ok(result) => result,
+    //     Err(err) => {
+    //         error!("{}", err);
+    //         return Err(SeedDatabaseError::SeedCorruptionAttempt);
+    //     }
+    // };
+    // println!("secure3->{:?}", secure3);
 
     if seeds.as_ref().borrow().len() < predefined.len() || secure == false {
         info!("Overwriting {}", path);

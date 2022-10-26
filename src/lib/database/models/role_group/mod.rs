@@ -8,8 +8,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::database::helpers::{
-    security::{get_max_level, is_data_secure},
-    seed_file_check, HasConfig, HasName, Predefined,
+    security::get_max_level, seed_file_check, HasConfig, HasName, Predefined,
 };
 use crate::database::{
     errors::{DatabaseError, SeedDatabaseError},
@@ -170,11 +169,17 @@ impl RoleGroup {
         let exceptionals = RoleGroupForm::get_exceptionals();
 
         if any_rows.len() == 0 {
-            seed_file_check::<RoleGroupForm, RoleGroupConfig>(
+            match seed_file_check::<RoleGroupForm, RoleGroupConfig>(
                 seed_file_path,
                 &predefined,
                 &exceptionals,
-            );
+            ) {
+                Ok(()) => (),
+                Err(err) => {
+                    error!("{}", err);
+                    return Err(SeedDatabaseError::SeedRoleGroupsFailed);
+                }
+            }
             // RoleGroup::insert(connection, &any_rows);
         } else {
             //RoleGroup::update(connection, &any_rows);
