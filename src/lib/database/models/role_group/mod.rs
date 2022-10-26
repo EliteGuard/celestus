@@ -8,7 +8,8 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::database::helpers::{
-    get_max_level, is_data_secure, seed_file_check, HasConfig, HasName, Predefined,
+    security::{get_max_level, is_data_secure},
+    seed_file_check, HasConfig, HasName, Predefined,
 };
 use crate::database::{
     errors::{DatabaseError, SeedDatabaseError},
@@ -92,6 +93,19 @@ impl Predefined<'_, RoleGroupForm> for RoleGroupForm {
             },
         ]
     }
+
+    fn get_exceptionals() -> Vec<RoleGroupForm> {
+        vec![
+            RoleGroupForm {
+                name: SYSTEM_ROLE_GROUP_NAME.to_string(),
+                config: Some(json!({ "level": get_max_level() })),
+            },
+            RoleGroupForm {
+                name: ADMIN_ROLE_GROUP_NAME.to_string(),
+                config: Some(json!({ "level": ADMIN_ROLE_LEVEL })),
+            },
+        ]
+    }
 }
 
 impl RoleGroup {
@@ -152,10 +166,14 @@ impl RoleGroup {
             }
         };
 
+        let predefined = RoleGroupForm::get_predefined();
+        let exceptionals = RoleGroupForm::get_exceptionals();
+
         if any_rows.len() == 0 {
             seed_file_check::<RoleGroupForm, RoleGroupConfig>(
                 seed_file_path,
-                RoleGroupForm::get_predefined(),
+                &predefined,
+                &exceptionals,
             );
             // RoleGroup::insert(connection, &any_rows);
         } else {
