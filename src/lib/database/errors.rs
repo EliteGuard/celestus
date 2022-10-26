@@ -23,6 +23,8 @@ pub enum DatabaseError {
     DataDeleteFailed,
     #[error("Data corruption attempt!")]
     DataCorruptionAttempt,
+    #[error("Securing data failed!")]
+    DataSecureFailed,
     #[error("Failed to recover from an unsuccessful operation!")]
     RecoveryFailed,
 }

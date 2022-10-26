@@ -153,7 +153,7 @@ impl RoleGroup {
         };
 
         if any_rows.len() == 0 {
-            seed_file_check::<RoleGroupForm, RoleGroupForm, RoleGroupConfig>(
+            seed_file_check::<RoleGroupForm, RoleGroupConfig>(
                 seed_file_path,
                 RoleGroupForm::get_predefined(),
             );
