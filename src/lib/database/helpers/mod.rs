@@ -1,6 +1,6 @@
 pub mod security;
 
-use crate::database::helpers::security::filter_out_unsecure_data;
+use crate::database::helpers::security::set_data_secure;
 
 use super::errors::SeedDatabaseError;
 use anyhow::Result;
@@ -8,12 +8,13 @@ use log::{error, info};
 use security::is_data_secure;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::{BufReader, Write};
-use std::{cell::RefCell, rc::Rc, vec};
+use std::io::BufReader;
+use std::vec;
 use std::{fmt::Debug, fs::OpenOptions};
 
 pub trait HasName {
-    fn get_name(&self) -> String;
+    fn get_name(&self) -> &String;
+    fn set_name(&mut self, name: String);
 }
 
 pub trait HasConfig {
@@ -26,78 +27,53 @@ where
     Model: HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     fn get_predefined() -> Vec<Model>;
-    fn get_exceptionals() -> Vec<Model>;
+    fn get_exceptions() -> Vec<Model>;
 }
 
-pub fn seed_file_check<Seed, SeedConfig>(
+pub fn seed_file_check<Seed>(
     path: &String,
     predefined: &Vec<Seed>,
-    exceptionals: &Vec<Seed>,
+    exceptions: &Vec<Seed>,
 ) -> Result<(), SeedDatabaseError>
 where
     for<'a> Seed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
-    for<'a> SeedConfig: Debug + Serialize + Deserialize<'a>,
 {
-    let seeds_from_file = get_seeds_from_file::<Seed>(path);
-    let seeds = Rc::new(RefCell::new(seeds_from_file));
+    let mut seeds = get_seeds_from_file::<Seed>(path);
 
     info!(
         "Found {}/{} seeds in {}",
-        seeds.as_ref().borrow().len(),
+        seeds.len(),
         predefined.len(),
         path
     );
 
-    let secure2 = match filter_out_unsecure_data::<Seed, SeedConfig>(
-        &mut seeds.borrow_mut(),
-        predefined,
-        exceptionals,
-        false,
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            error!("{}", err);
-            return Err(SeedDatabaseError::SeedCorruptionAttempt);
-        }
-    };
-    println!("secure2->{:?}", secure2);
+    // set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
+    // println!("secure2->{:?}", seeds.len());
 
-    let secure = match is_data_secure::<Seed, SeedConfig>(
-        &seeds.as_ref().borrow(),
-        predefined,
-        exceptionals,
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            error!("{}", err);
-            return Err(SeedDatabaseError::SeedCorruptionAttempt);
-        }
-    };
+    let secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
     println!("secure->{:?}", secure);
 
-    // let secure3 = match filter_out_unsecure_data::<Seed, SeedConfig>(
-    //     &mut seeds.borrow_mut(),
-    //     predefined,
-    //     exceptionals,
-    //     true,
-    // ) {
-    //     Ok(result) => result,
-    //     Err(err) => {
-    //         error!("{}", err);
-    //         return Err(SeedDatabaseError::SeedCorruptionAttempt);
-    //     }
-    // };
-    // println!("secure3->{:?}", secure3);
+    // set_data_secure::<Seed>(&mut seeds, predefined, exceptions, true);
+    // println!("secure3->{:?}", seeds.len());
 
-    if seeds.as_ref().borrow().len() < predefined.len() || secure == false {
+    if seeds.len() < predefined.len() {
+        //} || !secure {
         info!("Overwriting {}", path);
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&path)
             .expect(format!("Failed to create the file {}", &path).as_str());
-        let text = serde_json::to_string(&predefined).unwrap();
-        writeln!(file, "{}", text).expect(&format!("Failed to write to file {}", &path));
+        match serde_json::to_writer(file, &serde_json::to_value(&predefined).unwrap()) {
+            Ok(_) => (),
+            Err(err) => {
+                error!("{}", err);
+                return Err(SeedDatabaseError::SeedRecoveryFailed);
+            }
+        };
+        // let text = serde_json::to_string_pretty(&predefined).unwrap();
+        // writeln!(file, "{}", text).expect(&format!("Failed to write to file {}", &path));
     }
 
     Ok(())

@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::time::SystemTime;
 
 use anyhow::Result;
@@ -28,6 +29,24 @@ pub struct RoleGroup {
     pub hidden_at: Option<SystemTime>,
 }
 
+impl HasName for RoleGroup {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+    fn set_name(&mut self, name: String) {
+        self.name = name
+    }
+}
+impl HasConfig for RoleGroup {
+    fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
+        &self.config
+    }
+
+    fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
+        &mut self.config
+    }
+}
+
 const SYSTEM_ROLE_GROUP_NAME: &str = "SYSTEM";
 const ADMIN_ROLE_GROUP_NAME: &str = "ADMIN";
 const CLIENT_ROLE_GROUP_NAME: &str = "CLIENT";
@@ -49,24 +68,12 @@ pub struct RoleGroupForm {
     config: Option<serde_json::Value>,
 }
 
-impl HasName for RoleGroup {
-    fn get_name(&self) -> String {
-        self.name.clone()
-    }
-}
-impl HasConfig for RoleGroup {
-    fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
-        &self.config
-    }
-
-    fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
-        &mut self.config
-    }
-}
-
 impl HasName for RoleGroupForm {
-    fn get_name(&self) -> String {
-        self.name.clone()
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+    fn set_name(&mut self, name: String) {
+        self.name = name
     }
 }
 impl HasConfig for RoleGroupForm {
@@ -76,7 +83,13 @@ impl HasConfig for RoleGroupForm {
 
     fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
         &mut self.config
-        //config
+    }
+}
+
+impl Deref for RoleGroupForm {
+    type Target = Option<serde_json::Value>;
+    fn deref(&self) -> &Option<serde_json::Value> {
+        &self.config
     }
 }
 
@@ -102,7 +115,7 @@ impl Predefined<'_, RoleGroupForm> for RoleGroupForm {
         ]
     }
 
-    fn get_exceptionals() -> Vec<RoleGroupForm> {
+    fn get_exceptions() -> Vec<RoleGroupForm> {
         vec![
             RoleGroupForm {
                 name: SYSTEM_ROLE_GROUP_NAME.to_string(),
@@ -175,14 +188,10 @@ impl RoleGroup {
         };
 
         let predefined = RoleGroupForm::get_predefined();
-        let exceptionals = RoleGroupForm::get_exceptionals();
+        let exceptions = RoleGroupForm::get_exceptions();
 
         if any_rows.len() == 0 {
-            match seed_file_check::<RoleGroupForm, RoleGroupConfig>(
-                seed_file_path,
-                &predefined,
-                &exceptionals,
-            ) {
+            match seed_file_check::<RoleGroupForm>(seed_file_path, &predefined, &exceptions) {
                 Ok(()) => (),
                 Err(err) => {
                     error!("{}", err);

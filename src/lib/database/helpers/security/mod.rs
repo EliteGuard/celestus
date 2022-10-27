@@ -1,227 +1,206 @@
-use log::{info, warn};
+use anyhow::Result;
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fmt::Debug;
 
-use crate::database::errors::DatabaseError;
-
 use super::{HasConfig, HasName};
 
-pub fn is_data_secure<Seed, ConfigType>(
-    candidates: &Vec<Seed>,
-    consts: &Vec<Seed>,
-    exceptionals: &Vec<Seed>,
-) -> Result<bool, DatabaseError>
+pub fn is_data_secure<Data>(
+    candidates: &Vec<Data>,
+    consts: &Vec<Data>,
+    exceptions: &Vec<Data>,
+) -> bool
 where
-    for<'a> Seed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
-    for<'a> ConfigType: Debug + Serialize + Deserialize<'a>,
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     for secure in consts.iter() {
         for candidate in candidates.iter() {
-            if !is_secure::<Seed, ConfigType>(candidate, secure, exceptionals) {
-                info!("candidate->{:?} is NOT secure", candidate);
-                return Ok(false);
+            if !is_secure(candidate, secure, exceptions) {
+                warn!("candidate->{:?} is NOT secure", candidate);
+                return false;
             }
         }
     }
-    Ok(true)
+    true
 }
 
-pub fn is_secure<Seed, ConfigType>(
-    candidate: &Seed,
-    secure: &Seed,
-    exceptionals: &Vec<Seed>,
-) -> bool
+pub fn is_secure<Data>(candidate: &Data, secure: &Data, exceptions: &Vec<Data>) -> bool
 where
-    for<'a> Seed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
-    for<'a> ConfigType: Debug + Serialize + Deserialize<'a>,
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    let no_config = json!("{}");
+    is_level_ok(candidate, exceptions)
+}
 
-    if secure.get_name() != candidate.get_name() {
-        return true;
-    } else {
-        let exceptional = exceptionals
-            .iter()
-            .find(|&exc| exc.get_name() == candidate.get_name());
-        let is_exception = exceptional.is_some();
-        let max_allowed_level = exceptionals.iter().fold(u64::MAX, |min_val, exc| {
-            let val = exc
-                .get_config()
-                .as_ref()
-                .unwrap()
-                .get("level")
-                .unwrap()
-                .as_u64()
-                .unwrap();
-            val.min(min_val)
-        });
-
-        let cfg = candidate.get_config().as_ref().unwrap_or(&no_config);
-        is_level_ok(&cfg, secure, is_exception, max_allowed_level.into()).unwrap()
+fn is_level_ok<Data>(candidate: &Data, exceptions: &Vec<Data>) -> bool
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    let candidate_config = candidate.get_config().as_ref();
+    if candidate_config.is_none() {
+        return false;
     }
-}
 
-fn is_level_ok<Secure>(
-    candidate_config: &Value,
-    secure: &Secure,
-    is_exception: bool,
-    max_allowed_level: u64,
-) -> Result<bool, DatabaseError>
-where
-    for<'a> Secure: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
-{
-    let candidate_level = candidate_config.get("level");
+    let candidate_level = candidate_config.unwrap().get("level");
     if candidate_level.is_none() {
-        return Ok(false);
-    } else {
-        if !candidate_level.unwrap().is_u64() {
-            return Ok(false);
-        }
-
-        let secure_level = secure.get_config().as_ref().unwrap().get("level").unwrap();
-
-        warn!(
-            "candidate_level->{}",
-            candidate_level.unwrap().as_u64().unwrap()
-        );
-
-        if is_exception {
-            if candidate_level.unwrap().as_u64().unwrap() != secure_level.as_u64().unwrap() {
-                return Err(DatabaseError::DataCorruptionAttempt);
-            }
-        } else {
-            if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
-                return Err(DatabaseError::DataCorruptionAttempt);
-            }
-        }
-
-        return Ok(true);
+        return false;
     }
+
+    if !candidate_level.unwrap().is_u64() {
+        return false;
+    }
+
+    let exception = exceptions
+        .iter()
+        .find(|&exc| *exc.get_name() == *candidate.get_name());
+
+    if exception.is_some() {
+        let except = exception.unwrap();
+        if *except.get_name() == *candidate.get_name() {
+            let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
+            if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
+                return false;
+            }
+        }
+    }
+
+    let max_allowed_level = get_max_allowed_level(exceptions);
+    if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
+        return false;
+    }
+
+    return true;
 }
 
-pub fn filter_out_unsecure_data<Seed, ConfigType>(
-    candidates: &mut Vec<Seed>,
-    consts: &Vec<Seed>,
-    exceptionals: &Vec<Seed>,
-    fix: bool,
-) -> Result<(), DatabaseError>
-where
-    for<'a> Seed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
-    for<'a> ConfigType: Debug + Serialize + Deserialize<'a>,
+pub fn set_data_secure<Data>(
+    candidates: &mut Vec<Data>,
+    consts: &Vec<Data>,
+    exceptions: &Vec<Data>,
+    filter: bool,
+) where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     for secure in consts.iter() {
-        candidates.retain(|candidate| {
-            if !is_secure::<Seed, ConfigType>(secure, &candidate, exceptionals) {
-                warn!("candidate->{:?} is NOT secure", candidate);
-                if fix {
-                    let exceptional = exceptionals
-                        .iter()
-                        .find(|&exc| exc.get_name() == candidate.get_name());
-                    let is_exception = exceptional.is_some();
-                    let max_allowed_level = exceptionals.iter().fold(u64::MAX, |min_val, exc| {
-                        let val = exc
-                            .get_config()
-                            .as_ref()
-                            .unwrap()
-                            .get("level")
-                            .unwrap()
-                            .as_u64()
-                            .unwrap();
-                        val.min(min_val)
-                    });
-                    let mut no_config = json!("{}");
-                    let candidate_config = candidate
-                        .get_config_mut()
-                        .as_mut()
-                        .unwrap_or(&mut no_config);
-
-                    set_level_ok(candidate_config, secure, is_exception, max_allowed_level);
-                    true
-                } else {
-                    false
-                }
-            } else {
-                true
-            }
-        });
-        // for (i, candidate) in candidates.iter_mut().enumerate() {
-        //     if !is_secure::<Seed, ConfigType>(secure, candidate, exceptionals) {
-        //         warn!("candidate->{:?} is NOT secure", candidate);
-        //         if fix {
-        //             let exceptional = exceptionals
-        //                 .iter()
-        //                 .find(|&exc| exc.get_name() == candidate.get_name());
-        //             let is_exception = exceptional.is_some();
-        //             let max_allowed_level = exceptionals.iter().fold(u64::MAX, |min_val, exc| {
-        //                 let val = exc
-        //                     .get_config()
-        //                     .as_ref()
-        //                     .unwrap()
-        //                     .get("level")
-        //                     .unwrap()
-        //                     .as_u64()
-        //                     .unwrap();
-        //                 val.min(min_val)
-        //             });
-        //             let mut no_config = json!("{}");
-        //             let candidate_config = candidate
-        //                 .get_config_mut()
-        //                 .as_mut()
-        //                 .unwrap_or(&mut no_config);
-
-        //             set_level_ok(candidate_config, secure, is_exception, max_allowed_level);
-        //         } else {
-        //             candidates.remove(i);
-        //         }
-        //     }
-        // }
+        if filter {
+            filter_secure_data(candidates, secure, exceptions);
+        } else {
+            fix_unsecure_data(candidates, secure, exceptions);
+        }
     }
-    Ok(())
 }
 
-pub fn set_level_ok<Secure>(
-    candidate_config: &mut Value,
-    secure: &Secure,
-    is_exception: bool,
-    max_allowed_level: u64,
-) -> Result<(), DatabaseError>
+pub fn filter_secure_data<Data>(candidates: &mut Vec<Data>, secure: &Data, exceptions: &Vec<Data>)
 where
-    for<'a> Secure: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    let candidate_level = candidate_config.get("level");
-    if candidate_level.is_none() {
-        candidate_config["level"] = json!(0);
-        return Ok(());
-    } else {
-        if !candidate_level.unwrap().is_u64() {
-            candidate_config["level"] = json!(0);
-            return Ok(());
-        }
+    candidates.retain(|candidate| is_secure(candidate, secure, exceptions));
+}
 
-        let secure_level = secure.get_config().as_ref().unwrap().get("level").unwrap();
+pub fn fix_unsecure_data<Data>(candidates: &mut Vec<Data>, secure: &Data, exceptions: &Vec<Data>)
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    candidates.iter_mut().for_each(|candidate| {
+        // let exceptional = exceptions
+        //     .iter()
+        //     .find(|&exc| exc.get_name() == candidate.get_name());
+        // let is_exception = exceptional.is_some();
 
-        warn!(
-            "candidate_level->{}",
-            candidate_level.unwrap().as_u64().unwrap()
-        );
+        // let mut no_config = json!("{}");
+        // let candidate_config = candidate
+        //     .get_config_mut()
+        //     .as_mut()
+        //     .unwrap_or(&mut no_config);
+        // set_level_ok(candidate_config, secure, is_exception, max_allowed_level);
+        set_level_ok(candidate, exceptions);
+    });
+}
 
-        if is_exception {
-            if candidate_level.unwrap().as_u64().unwrap() != secure_level.as_u64().unwrap() {
-                candidate_config["level"] = json!(0);
-                return Ok(());
-            }
-        } else {
-            if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
-                candidate_config["level"] = json!(0);
-                return Ok(());
-            }
-        }
+pub fn set_level_ok<Data>(candidate: &mut Data, exceptions: &Vec<Data>)
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    let mut candidate_config = candidate.get_config().as_mut();
 
-        Ok(())
+    if candidate_config.is_none() {
+        candidate_config = Some(&mut json!({"level": 0}));
+        return;
     }
+
+    let candidate_level = candidate_config.unwrap().get("level");
+    if candidate_level.is_none() {
+        candidate_config.unwrap()["level"] = json!(0);
+        return;
+    }
+
+    if !candidate_level.unwrap().is_u64() {
+        candidate_config.unwrap()["level"] = json!(0);
+        return;
+    }
+
+    let exception = exceptions
+        .iter()
+        .find(|&exc| *exc.get_name() == *candidate.get_name());
+
+    if exception.is_some() {
+        let except = exception.unwrap();
+        if *except.get_name() == *candidate.get_name() {
+            let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
+            if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
+                candidate.set_name(String::from("TEST"));
+                candidate_config.unwrap()["level"] = json!(0);
+                return;
+            }
+        }
+    }
+
+    let max_allowed_level = get_max_allowed_level(exceptions);
+    if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
+        candidate_config.unwrap()["level"] = json!(0);
+    }
+    // let candidate_level = candidate_config.get("level");
+    // if candidate_level.is_none() {
+    //     candidate_config["level"] = json!(0);
+    //     return;
+    // } else {
+    //     if !candidate_level.unwrap().is_u64() {
+    //         candidate_config["level"] = json!(0);
+    //         return;
+    //     }
+
+    //     let secure_level = secure.get_config().as_ref().unwrap().get("level").unwrap();
+
+    //     if is_exception {
+    //         if candidate_level.unwrap().as_u64().unwrap() != secure_level.as_u64().unwrap() {
+    //             candidate_config["level"] = json!(0);
+    //             return;
+    //         }
+    //     } else {
+    //         if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
+    //             candidate_config["level"] = json!(0);
+    //             return;
+    //         }
+    //     }
+    // }
 }
 
 pub fn get_max_level() -> u32 {
     u32::MAX
+}
+
+fn get_max_allowed_level<Data>(group: &Vec<Data>) -> u64
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    group.iter().fold(u64::MAX, |min_val, member| {
+        let val = member
+            .get_config()
+            .as_ref()
+            .unwrap()
+            .get("level")
+            .unwrap()
+            .as_u64()
+            .unwrap();
+        val.min(min_val)
+    })
 }

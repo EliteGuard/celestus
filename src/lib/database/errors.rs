@@ -46,4 +46,6 @@ pub enum SeedDatabaseError {
     SeedUserGroupsFailed,
     #[error("Failed to seed users!")]
     SeedUsersFailed,
+    #[error("Failed to recover seed file!")]
+    SeedRecoveryFailed,
 }
