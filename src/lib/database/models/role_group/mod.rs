@@ -58,6 +58,10 @@ impl HasConfig for RoleGroup {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
         &self.config
     }
+
+    fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
+        &mut self.config
+    }
 }
 
 impl HasName for RoleGroupForm {
@@ -68,6 +72,11 @@ impl HasName for RoleGroupForm {
 impl HasConfig for RoleGroupForm {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
         &self.config
+    }
+
+    fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
+        &mut self.config
+        //config
     }
 }
 

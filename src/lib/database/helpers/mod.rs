@@ -1,5 +1,7 @@
 pub mod security;
 
+use crate::database::helpers::security::filter_out_unsecure_data;
+
 use super::errors::SeedDatabaseError;
 use anyhow::Result;
 use log::{error, info};
@@ -16,6 +18,7 @@ pub trait HasName {
 
 pub trait HasConfig {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value>;
+    fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value>;
 }
 
 pub trait Predefined<'a, Model>
@@ -45,19 +48,19 @@ where
         path
     );
 
-    // let secure2 = match get_secure_data::<Seed, SeedConfig>(
-    //     &mut seeds.borrow_mut(),
-    //     predefined,
-    //     exceptionals,
-    //     false,
-    // ) {
-    //     Ok(result) => result,
-    //     Err(err) => {
-    //         error!("{}", err);
-    //         return Err(SeedDatabaseError::SeedCorruptionAttempt);
-    //     }
-    // };
-    // println!("secure2->{:?}", secure2);
+    let secure2 = match filter_out_unsecure_data::<Seed, SeedConfig>(
+        &mut seeds.borrow_mut(),
+        predefined,
+        exceptionals,
+        false,
+    ) {
+        Ok(result) => result,
+        Err(err) => {
+            error!("{}", err);
+            return Err(SeedDatabaseError::SeedCorruptionAttempt);
+        }
+    };
+    println!("secure2->{:?}", secure2);
 
     let secure = match is_data_secure::<Seed, SeedConfig>(
         &seeds.as_ref().borrow(),
@@ -72,7 +75,7 @@ where
     };
     println!("secure->{:?}", secure);
 
-    // let secure3 = match get_secure_data::<Seed, SeedConfig>(
+    // let secure3 = match filter_out_unsecure_data::<Seed, SeedConfig>(
     //     &mut seeds.borrow_mut(),
     //     predefined,
     //     exceptionals,
