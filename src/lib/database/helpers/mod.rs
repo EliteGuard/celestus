@@ -14,12 +14,13 @@ use std::{fmt::Debug, fs::OpenOptions};
 
 pub trait HasName {
     fn get_name(&self) -> &String;
-    fn set_name(&mut self, name: String);
+    fn set_name<'a>(&'a mut self, name: &'a String);
 }
 
 pub trait HasConfig {
-    fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value>;
+    fn get_config(&self) -> &Option<serde_json::Value>;
     fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value>;
+    fn set_config<'a>(&'a mut self, config: &'a serde_json::Value);
 }
 
 pub trait Predefined<'a, Model>

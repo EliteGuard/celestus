@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fmt::Debug;
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use super::{HasConfig, HasName};
 
@@ -52,11 +52,11 @@ where
 
     let exception = exceptions
         .iter()
-        .find(|&exc| *exc.get_name() == *candidate.get_name());
+        .find(|&exc| exc.get_name() == candidate.get_name());
 
     if exception.is_some() {
         let except = exception.unwrap();
-        if *except.get_name() == *candidate.get_name() {
+        if except.get_name() == candidate.get_name() {
             let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
             if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
                 return false;
@@ -116,39 +116,44 @@ where
     });
 }
 
-pub fn set_level_ok<Data>(candidate: &mut Data, exceptions: &Vec<Data>)
+pub fn set_level_ok<Data>(to_be_set: &mut Data, exceptions: &Vec<Data>)
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    let mut candidate_config = candidate.get_config().as_mut();
+    let candidate = Rc::new(RefCell::new(to_be_set));
+
+    let candidate_config = candidate.borrow_mut().get_mut().get_config_mut();
+    let default_level = json!({"level": 0});
 
     if candidate_config.is_none() {
-        candidate_config = Some(&mut json!({"level": 0}));
+        candidate.borrow().set_config(&default_level);
         return;
     }
 
-    let candidate_level = candidate_config.unwrap().get("level");
+    let cand_cfg = candidate_config.as_mut().unwrap();
+
+    let candidate_level = cand_cfg.get("level");
     if candidate_level.is_none() {
-        candidate_config.unwrap()["level"] = json!(0);
+        cand_cfg["level"] = json!(0);
         return;
     }
 
     if !candidate_level.unwrap().is_u64() {
-        candidate_config.unwrap()["level"] = json!(0);
+        cand_cfg["level"] = json!(0);
         return;
     }
 
     let exception = exceptions
         .iter()
-        .find(|&exc| *exc.get_name() == *candidate.get_name());
+        .find(|&exc| exc.get_name() == candidate.get_name());
 
     if exception.is_some() {
         let except = exception.unwrap();
-        if *except.get_name() == *candidate.get_name() {
+        if except.get_name() == candidate.get_name() {
             let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
             if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
-                candidate.set_name(String::from("TEST"));
-                candidate_config.unwrap()["level"] = json!(0);
+                candidate.set_name(&String::from("TEST"));
+                candidate_config.as_ref().unwrap()["level"] = json!(0);
                 return;
             }
         }

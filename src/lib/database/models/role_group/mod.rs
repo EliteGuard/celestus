@@ -33,17 +33,19 @@ impl HasName for RoleGroup {
     fn get_name(&self) -> &String {
         &self.name
     }
-    fn set_name(&mut self, name: String) {
-        self.name = name
+    fn set_name(&mut self, name: &String) {
+        self.name = name.clone()
     }
 }
 impl HasConfig for RoleGroup {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
         &self.config
     }
-
     fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
         &mut self.config
+    }
+    fn set_config<'a>(&'a mut self, config: &'a serde_json::Value) {
+        self.config = Some(config.clone());
     }
 }
 
@@ -72,8 +74,8 @@ impl HasName for RoleGroupForm {
     fn get_name(&self) -> &String {
         &self.name
     }
-    fn set_name(&mut self, name: String) {
-        self.name = name
+    fn set_name<'a>(&'a mut self, name: &'a String) {
+        self.name = name.clone()
     }
 }
 impl HasConfig for RoleGroupForm {
@@ -83,6 +85,10 @@ impl HasConfig for RoleGroupForm {
 
     fn get_config_mut<'a>(&'a mut self) -> &'a mut Option<serde_json::Value> {
         &mut self.config
+    }
+
+    fn set_config<'a>(&'a mut self, config: &'a serde_json::Value) {
+        self.config = Some(config.clone());
     }
 }
 
