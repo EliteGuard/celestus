@@ -1,3 +1,4 @@
+pub mod json;
 pub mod security;
 
 use crate::database::helpers::security::set_data_secure;
@@ -41,24 +42,25 @@ where
 {
     let mut seeds = get_seeds_from_file::<Seed>(path);
 
-    info!(
-        "Found {}/{} seeds in {}",
-        seeds.len(),
-        predefined.len(),
-        path
-    );
+    info!("Found {} seeds in {}", seeds.len(), path);
 
-    // set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
-    // println!("secure2->{:?}", seeds.len());
+    let disarm = false;
 
-    let secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
-    println!("secure->{:?}", secure);
+    let mut secure = false;
 
-    // set_data_secure::<Seed>(&mut seeds, predefined, exceptions, true);
-    // println!("secure3->{:?}", seeds.len());
+    if disarm {
+        set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
+        println!("after disarm->\n{:?}", seeds.len());
+        secure = true;
+    } else {
+        secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
+    }
+    println!("is secure?->{:?}", secure);
+    println!("secure seeds->\n{:?}", seeds);
 
-    if seeds.len() < predefined.len() {
-        //} || !secure {
+    secure = seeds.len() < predefined.len();
+
+    if !secure || (!secure && disarm) {
         info!("Overwriting {}", path);
         let file = OpenOptions::new()
             .write(true)
@@ -73,8 +75,6 @@ where
                 return Err(SeedDatabaseError::SeedRecoveryFailed);
             }
         };
-        // let text = serde_json::to_string_pretty(&predefined).unwrap();
-        // writeln!(file, "{}", text).expect(&format!("Failed to write to file {}", &path));
     }
 
     Ok(())

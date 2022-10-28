@@ -1,10 +1,12 @@
-use anyhow::Result;
-use log::{error, info, warn};
+use log::warn;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use serde_json::json;
+use std::fmt::Debug;
 
-use super::{HasConfig, HasName};
+use super::{
+    json::{insert_obj_prop, upsert_obj_prop},
+    HasConfig, HasName,
+};
 
 pub fn is_data_secure<Data>(
     candidates: &Vec<Data>,
@@ -25,7 +27,7 @@ where
     true
 }
 
-pub fn is_secure<Data>(candidate: &Data, secure: &Data, exceptions: &Vec<Data>) -> bool
+pub fn is_secure<Data>(candidate: &Data, _secure: &Data, exceptions: &Vec<Data>) -> bool
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
@@ -58,9 +60,7 @@ where
         let except = exception.unwrap();
         if except.get_name() == candidate.get_name() {
             let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
-            if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
-                return false;
-            }
+            return candidate_level.unwrap().as_u64().unwrap() == exception_level.as_u64().unwrap();
         }
     }
 
@@ -96,52 +96,43 @@ where
     candidates.retain(|candidate| is_secure(candidate, secure, exceptions));
 }
 
-pub fn fix_unsecure_data<Data>(candidates: &mut Vec<Data>, secure: &Data, exceptions: &Vec<Data>)
+pub fn fix_unsecure_data<Data>(candidates: &mut Vec<Data>, _secure: &Data, exceptions: &Vec<Data>)
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     candidates.iter_mut().for_each(|candidate| {
-        // let exceptional = exceptions
-        //     .iter()
-        //     .find(|&exc| exc.get_name() == candidate.get_name());
-        // let is_exception = exceptional.is_some();
-
-        // let mut no_config = json!("{}");
-        // let candidate_config = candidate
-        //     .get_config_mut()
-        //     .as_mut()
-        //     .unwrap_or(&mut no_config);
-        // set_level_ok(candidate_config, secure, is_exception, max_allowed_level);
         set_level_ok(candidate, exceptions);
     });
 }
 
-pub fn set_level_ok<Data>(to_be_set: &mut Data, exceptions: &Vec<Data>)
+pub fn set_level_ok<Data>(candidate: &mut Data, exceptions: &Vec<Data>)
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    let candidate = Rc::new(RefCell::new(to_be_set));
-
-    let candidate_config = candidate.borrow_mut().get_mut().get_config_mut();
     let default_level = json!({"level": 0});
+    fix_config(candidate, default_level);
 
-    if candidate_config.is_none() {
-        candidate.borrow().set_config(&default_level);
-        return;
+    if candidate
+        .get_config()
+        .as_ref()
+        .unwrap()
+        .get("level")
+        .is_none()
+    {
+        insert_obj_prop(
+            candidate.get_config_mut().as_mut().unwrap(),
+            &"level".to_string(),
+            json!(0),
+        );
     }
 
-    let cand_cfg = candidate_config.as_mut().unwrap();
-
-    let candidate_level = cand_cfg.get("level");
-    if candidate_level.is_none() {
-        cand_cfg["level"] = json!(0);
-        return;
-    }
-
-    if !candidate_level.unwrap().is_u64() {
-        cand_cfg["level"] = json!(0);
-        return;
-    }
+    let candidate_config = candidate.get_config().as_ref();
+    let candidate_level = candidate_config
+        .unwrap()
+        .get("level")
+        .unwrap()
+        .as_u64()
+        .unwrap();
 
     let exception = exceptions
         .iter()
@@ -150,43 +141,45 @@ where
     if exception.is_some() {
         let except = exception.unwrap();
         if except.get_name() == candidate.get_name() {
-            let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
-            if candidate_level.unwrap().as_u64().unwrap() != exception_level.as_u64().unwrap() {
-                candidate.set_name(&String::from("TEST"));
-                candidate_config.as_ref().unwrap()["level"] = json!(0);
+            let exception_level = except
+                .get_config()
+                .as_ref()
+                .unwrap()
+                .get("level")
+                .unwrap()
+                .as_u64()
+                .unwrap();
+            if candidate_level != exception_level {
+                protect_exception(candidate);
                 return;
             }
         }
     }
 
     let max_allowed_level = get_max_allowed_level(exceptions);
-    if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
-        candidate_config.unwrap()["level"] = json!(0);
+    let cfg_to_override = candidate.get_config_mut().as_mut().unwrap();
+    if candidate_level >= max_allowed_level {
+        upsert_obj_prop(cfg_to_override, &"level".to_string(), json!(0), true);
     }
-    // let candidate_level = candidate_config.get("level");
-    // if candidate_level.is_none() {
-    //     candidate_config["level"] = json!(0);
-    //     return;
-    // } else {
-    //     if !candidate_level.unwrap().is_u64() {
-    //         candidate_config["level"] = json!(0);
-    //         return;
-    //     }
+}
 
-    //     let secure_level = secure.get_config().as_ref().unwrap().get("level").unwrap();
+fn fix_config<Data>(candidate: &mut Data, default_value: serde_json::Value)
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    if candidate.get_config().is_none() {
+        candidate.set_config(&default_value);
+    }
+}
 
-    //     if is_exception {
-    //         if candidate_level.unwrap().as_u64().unwrap() != secure_level.as_u64().unwrap() {
-    //             candidate_config["level"] = json!(0);
-    //             return;
-    //         }
-    //     } else {
-    //         if candidate_level.unwrap().as_u64().unwrap() >= max_allowed_level {
-    //             candidate_config["level"] = json!(0);
-    //             return;
-    //         }
-    //     }
-    // }
+fn protect_exception<Data>(candidate: &mut Data)
+where
+    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    candidate.set_name(&String::from("TEST"));
+    let candidate_config = candidate.get_config_mut().as_mut().unwrap();
+
+    upsert_obj_prop(candidate_config, &"level".to_string(), json!(0), true);
 }
 
 pub fn get_max_level() -> u32 {
