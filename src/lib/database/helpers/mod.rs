@@ -5,7 +5,7 @@ use crate::database::helpers::security::set_data_secure;
 
 use super::errors::SeedDatabaseError;
 use anyhow::Result;
-use log::{error, info};
+use log::{error, info, warn};
 use security::is_data_secure;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -46,37 +46,35 @@ where
 
     let disarm = false;
 
-    let mut secure = false;
+    let mut secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
 
-    if disarm {
+    if !secure && disarm {
+        warn!("The file {} is not secure!", path);
+        warn!("Disarming...",);
         set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
-        println!("after disarm->\n{:?}", seeds.len());
-        secure = true;
-    } else {
-        secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
-    }
-    println!("is secure?->{:?}", secure);
-    println!("secure seeds->\n{:?}", seeds);
-
-    secure = seeds.len() < predefined.len();
-
-    if !secure || (!secure && disarm) {
-        info!("Overwriting {}", path);
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&path)
-            .expect(format!("Failed to create the file {}", &path).as_str());
-        match serde_json::to_writer(file, &serde_json::to_value(&predefined).unwrap()) {
-            Ok(_) => (),
-            Err(err) => {
-                error!("{}", err);
-                return Err(SeedDatabaseError::SeedRecoveryFailed);
-            }
-        };
+        info!("Seeds left after disarm->\n{:#?}", seeds.len());
     }
 
+    secure = seeds.len() >= predefined.len();
+
+    if secure {
+        return Ok(());
+    }
+
+    info!("Overwriting {}!", path);
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)
+        .expect(format!("Failed to create the file {}", &path).as_str());
+    match serde_json::to_writer(file, &serde_json::to_value(&predefined).unwrap()) {
+        Ok(_) => (),
+        Err(err) => {
+            error!("{}", err);
+            return Err(SeedDatabaseError::SeedRecoveryFailed);
+        }
+    };
     Ok(())
 }
 
