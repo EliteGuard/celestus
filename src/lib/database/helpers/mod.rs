@@ -44,18 +44,19 @@ where
 
     info!("Found {} seeds in {}", seeds.len(), path);
 
+    let filter = false;
+
     if seeds.len() >= predefined.len() {
-        let disarm = true;
         let secure = is_data_secure::<Seed>(&mut seeds, exceptions);
 
         if secure {
             return Ok(());
         }
 
-        if !secure && disarm {
+        if !secure {
             warn!("The file {} is not secure!", path);
             warn!("Disarming...",);
-            set_data_secure::<Seed>(&mut seeds, exceptions, false);
+            set_data_secure::<Seed>(&mut seeds, exceptions, filter);
             info!("Seeds left after disarm->\n{:#?}", seeds);
         }
     } else {
