@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -8,30 +9,48 @@ use super::{
     HasConfig, HasName,
 };
 
-pub fn is_data_secure<Data>(
-    candidates: &Vec<Data>,
-    consts: &Vec<Data>,
-    exceptions: &Vec<Data>,
-) -> bool
+pub fn is_data_secure<Data>(candidates: &mut Vec<Data>, exceptions: &Vec<Data>) -> bool
 where
-    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    for<'a> Data: Debug + Ord + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    for secure in consts.iter() {
-        for candidate in candidates.iter() {
-            if !is_secure(candidate, secure, exceptions) {
-                warn!("candidate->{:?} is NOT secure", candidate);
-                return false;
-            }
+    if any_duplicates(candidates) {
+        return false;
+    }
+    for candidate in candidates.iter() {
+        if !is_secure(candidate, exceptions) {
+            warn!("candidate->{:?} is NOT secure", candidate);
+            return false;
         }
     }
     true
 }
 
-pub fn is_secure<Data>(candidate: &Data, _secure: &Data, exceptions: &Vec<Data>) -> bool
+pub fn is_secure<Data>(candidate: &Data, exceptions: &Vec<Data>) -> bool
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     is_level_ok(candidate, exceptions)
+}
+
+pub fn any_duplicates<Data>(candidates: &mut Vec<Data>) -> bool
+where
+    for<'a> Data: Debug + Ord + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    candidates.sort();
+    candidates
+        .into_iter()
+        .dedup_by(|x, y| x.get_name() == y.get_name())
+        .collect_vec()
+        .len()
+        != candidates.len()
+}
+
+pub fn remove_duplicates<Data>(candidates: &mut Vec<Data>)
+where
+    for<'a> Data: Debug + Ord + HasName + HasConfig + Serialize + Deserialize<'a>,
+{
+    candidates.sort();
+    candidates.dedup_by(|a, b| a.eq(&b));
 }
 
 fn is_level_ok<Data>(candidate: &Data, exceptions: &Vec<Data>) -> bool
@@ -58,10 +77,8 @@ where
 
     if exception.is_some() {
         let except = exception.unwrap();
-        if except.get_name() == candidate.get_name() {
-            let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
-            return candidate_level.unwrap().as_u64().unwrap() == exception_level.as_u64().unwrap();
-        }
+        let exception_level = except.get_config().as_ref().unwrap().get("level").unwrap();
+        return candidate_level.unwrap().as_u64().unwrap() == exception_level.as_u64().unwrap();
     }
 
     let max_allowed_level = get_max_allowed_level(exceptions);
@@ -72,31 +89,27 @@ where
     return true;
 }
 
-pub fn set_data_secure<Data>(
-    candidates: &mut Vec<Data>,
-    consts: &Vec<Data>,
-    exceptions: &Vec<Data>,
-    filter: bool,
-) where
-    for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+pub fn set_data_secure<Data>(candidates: &mut Vec<Data>, exceptions: &Vec<Data>, filter: bool)
+where
+    for<'a> Data: Debug + Ord + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    for secure in consts.iter() {
-        if filter {
-            filter_secure_data(candidates, secure, exceptions);
-        } else {
-            fix_unsecure_data(candidates, secure, exceptions);
-        }
+    if filter {
+        filter_secure_data(candidates, exceptions);
+    } else {
+        fix_unsecure_data(candidates, exceptions);
     }
+
+    remove_duplicates(candidates);
 }
 
-pub fn filter_secure_data<Data>(candidates: &mut Vec<Data>, secure: &Data, exceptions: &Vec<Data>)
+pub fn filter_secure_data<Data>(candidates: &mut Vec<Data>, exceptions: &Vec<Data>)
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    candidates.retain(|candidate| is_secure(candidate, secure, exceptions));
+    candidates.retain(|candidate| is_secure(candidate, exceptions));
 }
 
-pub fn fix_unsecure_data<Data>(candidates: &mut Vec<Data>, _secure: &Data, exceptions: &Vec<Data>)
+pub fn fix_unsecure_data<Data>(candidates: &mut Vec<Data>, exceptions: &Vec<Data>)
 where
     for<'a> Data: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
@@ -139,21 +152,21 @@ where
         .find(|&exc| exc.get_name() == candidate.get_name());
 
     if exception.is_some() {
-        let except = exception.unwrap();
-        if except.get_name() == candidate.get_name() {
-            let exception_level = except
-                .get_config()
-                .as_ref()
-                .unwrap()
-                .get("level")
-                .unwrap()
-                .as_u64()
-                .unwrap();
-            if candidate_level != exception_level {
-                protect_exception(candidate);
-                return;
-            }
+        let exception_level = exception
+            .unwrap()
+            .get_config()
+            .as_ref()
+            .unwrap()
+            .get("level")
+            .unwrap()
+            .as_u64()
+            .unwrap();
+        if exception.unwrap().get_name() == candidate.get_name()
+            && candidate_level != exception_level
+        {
+            protect_exception(candidate);
         }
+        return;
     }
 
     let max_allowed_level = get_max_allowed_level(exceptions);

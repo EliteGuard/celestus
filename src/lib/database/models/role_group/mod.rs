@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::ops::Deref;
 use std::time::SystemTime;
 
@@ -49,6 +50,47 @@ impl HasConfig for RoleGroup {
     }
 }
 
+impl Ord for RoleGroup {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (
+            self.get_name(),
+            &self
+                .get_config()
+                .as_ref()
+                .unwrap()
+                .get("level")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+        )
+            .cmp(&(
+                other.get_name(),
+                &other
+                    .get_config()
+                    .as_ref()
+                    .unwrap()
+                    .get("level")
+                    .unwrap()
+                    .as_u64()
+                    .unwrap(),
+            ))
+    }
+}
+
+impl PartialOrd for RoleGroup {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for RoleGroup {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_name() == other.get_name()
+    }
+}
+
+impl Eq for RoleGroup {}
+
 const SYSTEM_ROLE_GROUP_NAME: &str = "SYSTEM";
 const ADMIN_ROLE_GROUP_NAME: &str = "ADMIN";
 const CLIENT_ROLE_GROUP_NAME: &str = "CLIENT";
@@ -98,6 +140,47 @@ impl Deref for RoleGroupForm {
         &self.config
     }
 }
+
+impl Ord for RoleGroupForm {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (
+            self.get_name(),
+            &self
+                .get_config()
+                .as_ref()
+                .unwrap()
+                .get("level")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+        )
+            .cmp(&(
+                other.get_name(),
+                &other
+                    .get_config()
+                    .as_ref()
+                    .unwrap()
+                    .get("level")
+                    .unwrap()
+                    .as_u64()
+                    .unwrap(),
+            ))
+    }
+}
+
+impl PartialOrd for RoleGroupForm {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for RoleGroupForm {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_name() == other.get_name()
+    }
+}
+
+impl Eq for RoleGroupForm {}
 
 impl Predefined<'_, RoleGroupForm> for RoleGroupForm {
     fn get_predefined() -> Vec<RoleGroupForm> {

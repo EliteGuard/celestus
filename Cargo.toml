@@ -19,6 +19,7 @@ chrono = "0.4.22"
 diesel = { version = "2.0.2", features = ["postgres", "uuid", "chrono", "r2d2", "serde_json"] }
 dotenvy = "0.15.5"
 env_logger = "0.9.1"
+itertools = "0.10.5"
 jsonwebtoken = "8.1.1"
 log = "0.4.17"
 serde = "1.0.146"

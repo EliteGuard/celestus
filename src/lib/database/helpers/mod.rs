@@ -38,15 +38,15 @@ pub fn seed_file_check<Seed>(
     exceptions: &Vec<Seed>,
 ) -> Result<(), SeedDatabaseError>
 where
-    for<'a> Seed: Debug + HasName + HasConfig + Serialize + Deserialize<'a>,
+    for<'a> Seed: Debug + Ord + HasName + HasConfig + Serialize + Deserialize<'a>,
 {
     let mut seeds = get_seeds_from_file::<Seed>(path);
 
     info!("Found {} seeds in {}", seeds.len(), path);
 
     if seeds.len() >= predefined.len() {
-        let disarm = false;
-        let secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
+        let disarm = true;
+        let secure = is_data_secure::<Seed>(&mut seeds, exceptions);
 
         if secure {
             return Ok(());
@@ -55,8 +55,8 @@ where
         if !secure && disarm {
             warn!("The file {} is not secure!", path);
             warn!("Disarming...",);
-            set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
-            info!("Seeds left after disarm->\n{:#?}", seeds.len());
+            set_data_secure::<Seed>(&mut seeds, exceptions, false);
+            info!("Seeds left after disarm->\n{:#?}", seeds);
         }
     } else {
         warn!(
@@ -64,6 +64,10 @@ where
             seeds.len(),
             predefined.len()
         );
+    }
+
+    if seeds.len() >= predefined.len() {
+        return Ok(());
     }
 
     warn!("Overwriting {}!", path);

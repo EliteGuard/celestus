@@ -22,5 +22,17 @@
     "config": {
       "level": 1000
     }
+  },
+  {
+    "name": "MY",
+    "config": {
+      "level": 2000
+    }
+  },
+  {
+    "name": "MY2",
+    "config": {
+      "level": 2000
+    }
   }
 ]
