@@ -44,31 +44,36 @@ where
 
     info!("Found {} seeds in {}", seeds.len(), path);
 
-    let disarm = false;
+    if seeds.len() >= predefined.len() {
+        let disarm = false;
+        let secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
 
-    let mut secure = is_data_secure::<Seed>(&seeds, predefined, exceptions);
+        if secure {
+            return Ok(());
+        }
 
-    if !secure && disarm {
-        warn!("The file {} is not secure!", path);
-        warn!("Disarming...",);
-        set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
-        info!("Seeds left after disarm->\n{:#?}", seeds.len());
+        if !secure && disarm {
+            warn!("The file {} is not secure!", path);
+            warn!("Disarming...",);
+            set_data_secure::<Seed>(&mut seeds, predefined, exceptions, false);
+            info!("Seeds left after disarm->\n{:#?}", seeds.len());
+        }
+    } else {
+        warn!(
+            "Found {} seeds while expecting at least {}.",
+            seeds.len(),
+            predefined.len()
+        );
     }
 
-    secure = seeds.len() >= predefined.len();
-
-    if secure {
-        return Ok(());
-    }
-
-    info!("Overwriting {}!", path);
+    warn!("Overwriting {}!", path);
     let file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .open(&path)
         .expect(format!("Failed to create the file {}", &path).as_str());
-    match serde_json::to_writer(file, &serde_json::to_value(&predefined).unwrap()) {
+    match serde_json::to_writer_pretty(file, &serde_json::to_value(&predefined).unwrap()) {
         Ok(_) => (),
         Err(err) => {
             error!("{}", err);
