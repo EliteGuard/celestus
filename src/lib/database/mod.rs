@@ -11,6 +11,8 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection, R2D2Connection};
 use log::{error, info};
 use std::env;
 
+use crate::database::helpers::seeds::try_to_seed;
+use crate::database::models::role_group::RoleGroupForm;
 use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
@@ -86,9 +88,14 @@ impl Database {
     }
 
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
+        info!("Starting seeding database...");
         let conn = self.connection.as_mut().unwrap();
-        match RoleGroup::try_to_seed(conn, &self.consts.role_group_seed_file_path) {
-            Ok(_) => info!("Successfully seeded role_groups!"),
+        match try_to_seed::<RoleGroup, RoleGroupForm>(
+            conn,
+            &self.consts.role_group_seed_file_path,
+            &"role_groups".to_string(),
+        ) {
+            Ok(_) => (),
             Err(err) => {
                 error!("{}", err);
                 return Err(DatabaseError::SeedFailed);

@@ -32,20 +32,22 @@ pub enum DatabaseError {
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum SeedDatabaseError {
-    #[error("Seed corruption attempt!")]
-    SeedCorruptionAttempt,
-    #[error("Failed to seed system_configs!")]
-    SeedSystemConfigsFailed,
-    #[error("Failed to seed feature_flags!")]
-    SeedFeatureFlagsFailed,
+    #[error("Seed file not found!")]
+    SeedFileNotFound,
+    // #[error("Seed corruption attempt!")]
+    // SeedCorruptionAttempt,
+    // #[error("Failed to seed system_configs!")]
+    // SeedSystemConfigsFailed,
+    // #[error("Failed to seed feature_flags!")]
+    // SeedFeatureFlagsFailed,
     #[error("Failed to seed role_groups!")]
     SeedRoleGroupsFailed,
-    #[error("Failed to seed roles!")]
-    SeedRolesFailed,
-    #[error("Failed to seed user_groups!")]
-    SeedUserGroupsFailed,
-    #[error("Failed to seed users!")]
-    SeedUsersFailed,
+    // #[error("Failed to seed roles!")]
+    // SeedRolesFailed,
+    // #[error("Failed to seed user_groups!")]
+    // SeedUserGroupsFailed,
+    // #[error("Failed to seed users!")]
+    // SeedUsersFailed,
     #[error("Failed to recover seed file!")]
     SeedRecoveryFailed,
 }

@@ -9,15 +9,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::database::helpers::{
-    security::get_max_level, seed_file_check, HasConfig, HasName, Predefined,
-};
-use crate::database::{
-    errors::{DatabaseError, SeedDatabaseError},
-    schema::role_groups,
-};
+use crate::database::helpers::GetAll;
+use crate::database::helpers::{security::get_max_level, HasConfig, HasName, Predefined};
+use crate::database::{errors::DatabaseError, schema::role_groups};
 
-#[derive(Identifiable, Insertable, Queryable, Serialize, Deserialize, Debug, Clone)]
+#[derive(Identifiable, Insertable, Queryable, Selectable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = role_groups)]
 pub struct RoleGroup {
     pub id: Uuid,
@@ -182,7 +178,7 @@ impl PartialEq for RoleGroupForm {
 
 impl Eq for RoleGroupForm {}
 
-impl Predefined<'_, RoleGroupForm> for RoleGroupForm {
+impl Predefined<RoleGroupForm> for RoleGroupForm {
     fn get_predefined() -> Vec<RoleGroupForm> {
         vec![
             RoleGroupForm {
@@ -218,10 +214,8 @@ impl Predefined<'_, RoleGroupForm> for RoleGroupForm {
     }
 }
 
-impl RoleGroup {
-    pub fn get_all_role_groups(
-        connection: &mut PgConnection,
-    ) -> Result<Vec<RoleGroup>, DatabaseError> {
+impl GetAll<RoleGroup> for RoleGroup {
+    fn get_all(connection: &mut PgConnection) -> Result<Vec<RoleGroup>, DatabaseError> {
         let seeded_role_groups = match role_groups::table.load::<RoleGroup>(connection) {
             Ok(res) => res,
             Err(err) => {
@@ -232,7 +226,20 @@ impl RoleGroup {
 
         Ok(seeded_role_groups)
     }
+}
 
+impl RoleGroup {
+    // fn get_all(connection: &mut PgConnection) -> Result<Vec<RoleGroup>, DatabaseError> {
+    //     let seeded_role_groups = match role_groups::table.load::<RoleGroup>(connection) {
+    //         Ok(res) => res,
+    //         Err(err) => {
+    //             error!("{}", err);
+    //             return Err(DatabaseError::DataSelectFailed);
+    //         }
+    //     };
+
+    //     Ok(seeded_role_groups)
+    // }
     // pub fn insert(
     //     connection: &mut PgConnection,
     //     role_groups: &Vec<RoleGroup>,
@@ -264,34 +271,35 @@ impl RoleGroup {
     //     Ok(vec![])
     // }
 
-    pub fn try_to_seed(
-        connection: &mut PgConnection,
-        seed_file_path: &String,
-    ) -> Result<(), SeedDatabaseError> {
-        let any_rows = match RoleGroup::get_all_role_groups(connection) {
-            Ok(rows) => rows,
-            Err(err) => {
-                error!("{}", err);
-                return Err(SeedDatabaseError::SeedRoleGroupsFailed);
-            }
-        };
+    // pub fn try_to_seed(
+    //     connection: &mut PgConnection,
+    //     seed_file_path: &String,
+    // ) -> Result<(), SeedDatabaseError> {
+    //     info!("Seeding role_groups...");
+    //     let any_rows = match RoleGroup::get_all(connection) {
+    //         Ok(rows) => rows,
+    //         Err(err) => {
+    //             error!("{}", err);
+    //             return Err(SeedDatabaseError::SeedRoleGroupsFailed);
+    //         }
+    //     };
 
-        let predefined = RoleGroupForm::get_predefined();
-        let exceptions = RoleGroupForm::get_exceptions();
+    //     let predefined = RoleGroupForm::get_predefined();
+    //     let exceptions = RoleGroupForm::get_exceptions();
 
-        if any_rows.len() == 0 {
-            match seed_file_check::<RoleGroupForm>(seed_file_path, &predefined, &exceptions) {
-                Ok(()) => (),
-                Err(err) => {
-                    error!("{}", err);
-                    return Err(SeedDatabaseError::SeedRoleGroupsFailed);
-                }
-            }
-            // RoleGroup::insert(connection, &any_rows);
-        } else {
-            //RoleGroup::update(connection, &any_rows);
-        }
+    //     if any_rows.len() == 0 {
+    //         match seed_file_check::<RoleGroupForm>(seed_file_path, &predefined, &exceptions) {
+    //             Ok(()) => (),
+    //             Err(err) => {
+    //                 error!("{}", err);
+    //                 return Err(SeedDatabaseError::SeedRoleGroupsFailed);
+    //             }
+    //         }
+    //         // RoleGroup::insert(connection, &any_rows);
+    //     } else {
+    //         //RoleGroup::update(connection, &any_rows);
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
