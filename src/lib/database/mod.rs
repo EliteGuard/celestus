@@ -12,7 +12,7 @@ use log::{error, info};
 use std::env;
 
 use crate::database::helpers::seeds::try_to_seed;
-use crate::database::models::role_group::RoleGroupForm;
+use crate::database::models::role_group::RoleGroupInput;
 use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
@@ -93,7 +93,7 @@ impl Database {
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
         info!("Starting seeding database...");
         let conn = self.connection.as_mut().unwrap();
-        match try_to_seed::<RoleGroup, RoleGroupForm>(
+        match try_to_seed::<RoleGroup, RoleGroupInput>(
             conn,
             &self.consts.role_group_seed_file_path,
             &"role_groups".to_string(),

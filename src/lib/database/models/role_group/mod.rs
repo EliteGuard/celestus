@@ -103,12 +103,12 @@ pub struct RoleGroupConfig {
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = role_groups)]
-pub struct RoleGroupForm {
+pub struct RoleGroupInput {
     name: String,
     config: Option<serde_json::Value>,
 }
 
-impl HasName for RoleGroupForm {
+impl HasName for RoleGroupInput {
     fn get_name(&self) -> &String {
         &self.name
     }
@@ -116,7 +116,7 @@ impl HasName for RoleGroupForm {
         self.name = name.clone()
     }
 }
-impl HasConfig for RoleGroupForm {
+impl HasConfig for RoleGroupInput {
     fn get_config<'a>(&'a self) -> &'a Option<serde_json::Value> {
         &self.config
     }
@@ -130,14 +130,14 @@ impl HasConfig for RoleGroupForm {
     }
 }
 
-impl Deref for RoleGroupForm {
+impl Deref for RoleGroupInput {
     type Target = Option<serde_json::Value>;
     fn deref(&self) -> &Option<serde_json::Value> {
         &self.config
     }
 }
 
-impl Ord for RoleGroupForm {
+impl Ord for RoleGroupInput {
     fn cmp(&self, other: &Self) -> Ordering {
         (
             self.get_name(),
@@ -164,49 +164,49 @@ impl Ord for RoleGroupForm {
     }
 }
 
-impl PartialOrd for RoleGroupForm {
+impl PartialOrd for RoleGroupInput {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl PartialEq for RoleGroupForm {
+impl PartialEq for RoleGroupInput {
     fn eq(&self, other: &Self) -> bool {
         self.get_name() == other.get_name()
     }
 }
 
-impl Eq for RoleGroupForm {}
+impl Eq for RoleGroupInput {}
 
-impl Predefined<RoleGroupForm> for RoleGroupForm {
-    fn get_predefined() -> Vec<RoleGroupForm> {
+impl Predefined<RoleGroupInput> for RoleGroupInput {
+    fn get_predefined() -> Vec<RoleGroupInput> {
         vec![
-            RoleGroupForm {
+            RoleGroupInput {
                 name: SYSTEM_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": get_max_level() })),
             },
-            RoleGroupForm {
+            RoleGroupInput {
                 name: ADMIN_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": ADMIN_ROLE_LEVEL })),
             },
-            RoleGroupForm {
+            RoleGroupInput {
                 name: CLIENT_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": CLIENT_ROLE_LEVEL })),
             },
-            RoleGroupForm {
+            RoleGroupInput {
                 name: USER_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": USER_ROLE_LEVEL })),
             },
         ]
     }
 
-    fn get_exceptions() -> Vec<RoleGroupForm> {
+    fn get_exceptions() -> Vec<RoleGroupInput> {
         vec![
-            RoleGroupForm {
+            RoleGroupInput {
                 name: SYSTEM_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": get_max_level() })),
             },
-            RoleGroupForm {
+            RoleGroupInput {
                 name: ADMIN_ROLE_GROUP_NAME.to_string(),
                 config: Some(json!({ "level": ADMIN_ROLE_LEVEL })),
             },
@@ -244,9 +244,9 @@ impl RoleGroup {
     //     connection: &mut PgConnection,
     //     role_groups: &Vec<RoleGroup>,
     // ) -> Result<Vec<RoleGroup>, DatabaseError> {
-    //     let untouchables: Vec<RoleGroupForm> = RoleGroupForm::get_predefined();
+    //     let untouchables: Vec<RoleGroupInput> = RoleGroupInput::get_predefined();
     //     if let Err(err) =
-    //         is_data_secure::<RoleGroupForm, RoleGroup, RoleGroupConfig>(&untouchables, role_groups)
+    //         is_data_secure::<RoleGroupInput, RoleGroup, RoleGroupConfig>(&untouchables, role_groups)
     //     {
     //         error!("{}", err);
     //         return Err(DatabaseError::DataCorruptionAttempt);
@@ -284,11 +284,11 @@ impl RoleGroup {
     //         }
     //     };
 
-    //     let predefined = RoleGroupForm::get_predefined();
-    //     let exceptions = RoleGroupForm::get_exceptions();
+    //     let predefined = RoleGroupInput::get_predefined();
+    //     let exceptions = RoleGroupInput::get_exceptions();
 
     //     if any_rows.len() == 0 {
-    //         match seed_file_check::<RoleGroupForm>(seed_file_path, &predefined, &exceptions) {
+    //         match seed_file_check::<RoleGroupInput>(seed_file_path, &predefined, &exceptions) {
     //             Ok(()) => (),
     //             Err(err) => {
     //                 error!("{}", err);

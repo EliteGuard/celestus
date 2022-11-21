@@ -10,6 +10,29 @@ use std::io::BufReader;
 use std::vec;
 use std::{fmt::Debug, fs::OpenOptions};
 
+// pub trait IsSeed {
+//     fn get_seed_name(&self) -> &String;
+//     fn get_seed_path(&self) -> &String;
+//     fn get_seed_minimum(&self) -> isize;
+// }
+
+pub fn is_seed_needed<Model, Seed>(connection: &mut PgConnection) -> Result<bool, SeedDatabaseError>
+where
+    for<'a> Model: GetAll<Model> + Debug + Ord + Serialize + HasName + HasConfig + Deserialize<'a>,
+    for<'a> Seed:
+        Predefined<Seed> + Serialize + Debug + Ord + HasName + HasConfig + Deserialize<'a>,
+{
+    let any_rows: Vec<Model> = match Model::get_all(connection) {
+        Ok(rows) => rows,
+        Err(err) => {
+            error!("{}", err);
+            return Err(SeedDatabaseError::SeedInfoGetFailed);
+        }
+    };
+
+    Ok(any_rows.len() == 0)
+}
+
 pub fn try_to_seed<Model, Seed>(
     connection: &mut PgConnection,
     seed_file_path: &String,
@@ -20,29 +43,28 @@ where
     for<'a> Seed:
         Predefined<Seed> + Serialize + Debug + Ord + HasName + HasConfig + Deserialize<'a>,
 {
-    info!("Seeding role_groups...");
-    let any_rows: Vec<Model> = match Model::get_all(connection) {
-        Ok(rows) => rows,
-        Err(err) => {
-            error!("{}", err);
-            return Err(SeedDatabaseError::SeedRoleGroupsFailed);
-        }
-    };
+    info!("Seeding {}...", seed_name);
 
     let predefined = Seed::get_predefined();
     let exceptions = Seed::get_exceptions();
 
-    if any_rows.len() == 0 {
-        match seed_file_check::<Seed>(seed_file_path, &predefined, &exceptions) {
-            Ok(()) => (),
-            Err(err) => {
-                error!("{}", err);
-                return Err(SeedDatabaseError::SeedRoleGroupsFailed);
-            }
+    let seed_needed = match is_seed_needed::<Model, Seed>(connection) {
+        Ok(res) => res,
+        Err(err) => {
+            error!("{}", err);
+            return Err(SeedDatabaseError::SeedCheckFailed);
         }
-        // RoleGroup::insert(connection, &any_rows);
-    } else {
-        //RoleGroup::update(connection, &any_rows);
+    };
+    if !seed_needed {
+        return Ok(());
+    }
+
+    match seed_file_check::<Seed>(seed_file_path, &predefined, &exceptions) {
+        Ok(()) => (),
+        Err(err) => {
+            error!("{}", err);
+            return Err(SeedDatabaseError::SeedFileNotFound);
+        }
     }
 
     info!("Successfully seeded {}!", seed_name);
