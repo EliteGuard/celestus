@@ -5,7 +5,7 @@ mod helpers;
 pub mod models;
 pub mod schema;
 
-use anyhow::{Error, Result};
+use anyhow::{Context, Error, Result};
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection, R2D2Connection};
 use log::{error, info};
@@ -57,7 +57,10 @@ impl Database {
 
         let database_url = match self.generate_database_url() {
             Ok(res) => res,
-            Err(_) => return Err(DatabaseError::URLGenerationFailed),
+            Err(err) => {
+                error!("{}", err);
+                return Err(DatabaseError::URLGenerationFailed);
+            }
         };
 
         match Pool::builder().build(ConnectionManager::<PgConnection>::new(database_url)) {
@@ -156,17 +159,23 @@ impl Database {
 
     fn generate_database_url(&self) -> Result<String, Error> {
         let url_prefix = env::var("DATABASE_URL_PREFIX")
-            .expect("environment variable DATABASE_URL_PREFIX must be set");
-        let user =
-            env::var("DATABASE_USER").expect("environment variable DATABASE_USER must be set");
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_URL_PREFIX must be set")?;
+        let user = env::var("DATABASE_USER")
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_USER must be set")?;
         let password = env::var("DATABASE_PASSWORD")
-            .expect("environment variable DATABASE_PASSWORD must be set");
-        let host =
-            env::var("DATABASE_HOST").expect("environment variable DATABASE_HOST must be set");
-        let port =
-            env::var("DATABASE_PORT").expect("environment variable DATABASE_PORT must be set");
-        let name =
-            env::var("DATABASE_NAME").expect("environment variable DATABASE_NAME must be set");
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_PASSWORD must be set")?;
+        let host = env::var("DATABASE_HOST")
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_HOST must be set")?;
+        let port = env::var("DATABASE_PORT")
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_PORT must be set")?;
+        let name = env::var("DATABASE_NAME")
+            .map_err(anyhow::Error::msg)
+            .context("environment variable DATABASE_NAME must be set")?;
 
         let full_url = format!(
             "{}://{}:{}@{}:{}/{}",
