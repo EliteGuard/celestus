@@ -9,11 +9,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::database::helpers::seeds::Seedable;
 use crate::database::helpers::GetAll;
 use crate::database::helpers::{security::get_max_level, HasConfig, HasName, Predefined};
 use crate::database::{errors::DatabaseError, schema::role_groups};
 
-#[derive(Identifiable, Insertable, Queryable, Selectable, Serialize, Deserialize, Debug, Clone)]
+#[derive(Identifiable, Insertable, Queryable, Selectable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = role_groups)]
 pub struct RoleGroup {
     pub id: Uuid,
@@ -45,7 +46,6 @@ impl HasConfig for RoleGroup {
         self.config = Some(config.clone());
     }
 }
-
 impl Ord for RoleGroup {
     fn cmp(&self, other: &Self) -> Ordering {
         (
@@ -72,20 +72,18 @@ impl Ord for RoleGroup {
             ))
     }
 }
-
 impl PartialOrd for RoleGroup {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-
 impl PartialEq for RoleGroup {
     fn eq(&self, other: &Self) -> bool {
         self.get_name() == other.get_name()
     }
 }
-
 impl Eq for RoleGroup {}
+impl Seedable<RoleGroup, RoleGroupInput> for RoleGroup {}
 
 const SYSTEM_ROLE_GROUP_NAME: &str = "SYSTEM";
 const ADMIN_ROLE_GROUP_NAME: &str = "ADMIN";
@@ -107,7 +105,6 @@ pub struct RoleGroupInput {
     name: String,
     config: Option<serde_json::Value>,
 }
-
 impl HasName for RoleGroupInput {
     fn get_name(&self) -> &String {
         &self.name
@@ -129,14 +126,12 @@ impl HasConfig for RoleGroupInput {
         self.config = Some(config.clone());
     }
 }
-
 impl Deref for RoleGroupInput {
     type Target = Option<serde_json::Value>;
     fn deref(&self) -> &Option<serde_json::Value> {
         &self.config
     }
 }
-
 impl Ord for RoleGroupInput {
     fn cmp(&self, other: &Self) -> Ordering {
         (
@@ -163,21 +158,18 @@ impl Ord for RoleGroupInput {
             ))
     }
 }
-
 impl PartialOrd for RoleGroupInput {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-
 impl PartialEq for RoleGroupInput {
     fn eq(&self, other: &Self) -> bool {
         self.get_name() == other.get_name()
     }
 }
-
 impl Eq for RoleGroupInput {}
-
+impl Seedable<RoleGroup, RoleGroupInput> for RoleGroupInput {}
 impl Predefined<RoleGroupInput> for RoleGroupInput {
     fn get_predefined() -> Vec<RoleGroupInput> {
         vec![
@@ -213,7 +205,6 @@ impl Predefined<RoleGroupInput> for RoleGroupInput {
         ]
     }
 }
-
 impl GetAll<RoleGroup> for RoleGroup {
     fn get_all(connection: &mut PgConnection) -> Result<Vec<RoleGroup>, DatabaseError> {
         let seeded_role_groups = match role_groups::table.load::<RoleGroup>(connection) {

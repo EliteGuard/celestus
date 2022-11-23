@@ -22,8 +22,13 @@ pub trait Predefined<Model>
 where
     for<'a> Model: HasName + HasConfig + Serialize + Deserialize<'a>,
 {
-    fn get_predefined() -> Vec<Model>;
-    fn get_exceptions() -> Vec<Model>;
+    fn get_predefined() -> Vec<Model> {
+        vec![]
+    }
+
+    fn get_exceptions() -> Vec<Model> {
+        vec![]
+    }
 }
 
 pub trait GetAll<Model> {

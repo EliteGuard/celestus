@@ -11,13 +11,12 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection, R2D2Connection};
 use log::{error, info};
 use std::env;
 
-use crate::database::helpers::seeds::try_to_seed;
-use crate::database::models::role_group::RoleGroupInput;
+use crate::database::helpers::seeds::{SeedModels, Seedable};
+use crate::database::models::role_group::RoleGroup;
+use crate::database::models::system_config::SystemConfig;
 use crate::utils::environment::Environment;
 use consts::Consts;
 use errors::DatabaseError;
-
-use self::models::role_group::RoleGroup;
 
 pub struct Database {
     seeded: bool,
@@ -93,30 +92,20 @@ impl Database {
     fn seed(&mut self) -> Result<&mut Self, DatabaseError> {
         info!("Starting seeding database...");
         let conn = self.connection.as_mut().unwrap();
-        match try_to_seed::<RoleGroup, RoleGroupInput>(
-            conn,
-            &self.consts.role_group_seed_file_path,
-            &"role_groups".to_string(),
-        ) {
-            Ok(_) => (),
-            Err(err) => {
-                error!("{}", err);
-                return Err(DatabaseError::SeedFailed);
+
+        for seed_props in self.consts.seed_consts.iter() {
+            match seed_props.model {
+                SeedModels::SystemConfig => {
+                    SystemConfig::try_to_seed(conn, seed_props)
+                        .map_err(|_| return DatabaseError::SeedFailed)?;
+                }
+                SeedModels::RoleGroup => {
+                    RoleGroup::try_to_seed(conn, seed_props)
+                        .map_err(|_| return DatabaseError::SeedFailed)?;
+                }
             }
-        };
-
+        }
         //let now = Utc::now().naive_utc();
-
-        // self.seeded = match self.is_seeded() {
-        //     Ok(result) => result,
-        //     Err(err) => {
-        //         error!("{}", err.to_string());
-        //         return Err(DatabaseError::SeedFailed);
-        //     }
-        // };
-
-        // self.seed_system_configs(&now)?;
-
         self.seeded = true;
         Ok(self)
     }

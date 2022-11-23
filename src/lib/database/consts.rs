@@ -7,11 +7,12 @@ const C_ROLE_GROUP_SEED_FILE_PATH_DEV: &str = "./src/lib/database/models/role_gr
 
 pub struct Consts {
     pub environment: Environment,
-    pub system_config_seed_file_path: String,
-    pub role_group_seed_file_path: String,
+    pub seed_consts: Vec<SeedProps>,
 }
 
 use crate::utils::environment::Environment;
+
+use super::helpers::seeds::{SeedModels, SeedProps};
 
 impl Consts {
     pub fn new(environment: &Environment) -> Self {
@@ -27,8 +28,20 @@ impl Consts {
 
         Self {
             environment,
-            system_config_seed_file_path,
-            role_group_seed_file_path,
+            seed_consts: vec![
+                SeedProps {
+                    model: SeedModels::SystemConfig,
+                    name: "system_configs".to_string(),
+                    file_path: system_config_seed_file_path,
+                    minimum_required: 1,
+                },
+                SeedProps {
+                    model: SeedModels::RoleGroup,
+                    name: "role_groups".to_string(),
+                    file_path: role_group_seed_file_path,
+                    minimum_required: 4,
+                },
+            ],
         }
     }
 }

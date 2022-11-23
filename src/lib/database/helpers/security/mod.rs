@@ -62,7 +62,11 @@ where
         return false;
     }
 
-    let candidate_level = candidate_config.unwrap().get("level");
+    if !candidate_config.unwrap().is_object() {
+        return false;
+    }
+
+    let candidate_level = candidate_config.unwrap().as_object().unwrap().get("level");
     if candidate_level.is_none() {
         return false;
     }
