@@ -1,0 +1,2 @@
+#!/bin/bash
+openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout ./configs/http2/security/keys/server.key -out ./configs/http2/security/certificates/server.crt -subj '/C=BG/ST=Ruse/O=TestCelestus/L=Ruse/CN=TestCelestus/OU=Software Development'

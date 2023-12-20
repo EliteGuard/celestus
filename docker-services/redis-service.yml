@@ -1,0 +1,38 @@
+services:
+    redis:
+        build:
+            context: ../cache/redis
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: prod
+        image: redis
+        container_name: redis
+        ports:
+            - 6379:6379
+        volumes:
+            - redis:/data
+        environment:
+            - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL,CONFIG
+        restart: always
+        profiles:
+            - prod
+
+    redis-dev:
+        build:
+            context: ../cache/redis
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: dev
+        image: redis-dev
+        container_name: redis-dev
+        # ports:
+        #     - 6379:6379
+        volumes:
+            - redis-dev:/data
+        environment:
+            - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL,CONFIG
+        restart: always
+        profiles:
+            - dev

@@ -1,0 +1,46 @@
+services:
+    celestus:
+        build:
+            context: ./
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: prod
+        image: celestus
+        container_name: celestus
+        # ports:
+        #     - 9000:9000
+        volumes:
+            - celestus
+        environment:
+            - NODE_ENV=production
+            - VAULT_HOST=127.0.0.1
+            - VAULT_PORT=8200
+            - VAULT_URL=http://127.0.0.1:8200
+        restart: always
+        profiles:
+            - prod
+
+    celestus-dev:
+        build:
+            context: ./
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: dev
+        image: celestus-dev
+        container_name: celestus-dev
+        # ports:
+        #     - 9001:9001
+        volumes:
+            - .:/celestus
+        # env_file:
+        #     - ./configs/secrets/vault/dev.secrets.env
+        environment:
+            - NODE_ENV=development
+            - VAULT_HOST=vault-dev
+            - VAULT_PORT=8201
+            - VAULT_URL=http://vault-dev:8201
+        restart: on-failure
+        profiles:
+            - dev

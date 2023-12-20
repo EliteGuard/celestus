@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+    vault:
+        extends:
+            file: ./docker-services/vault-service.yml
+            service: vault
+    vault-dev:
+        extends:
+            file: ./docker-services/vault-service.yml
+            service: vault-dev
+        ports:
+            - 8201:8201
+
+    celestus:
+        extends:
+            file: celestus-service.yml
+            service: celestus
+        depends_on:
+            - vault
+            - redis
+            - postgres
+    celestus-dev:
+        extends:
+            file: celestus-service.yml
+            service: celestus-dev
+        ports:
+            - 9091:9091
+        depends_on:
+            - vault-dev
+            - redis-dev
+            - postgres-dev
+    #   celestus-dev2:
+    #       extends:
+    #           file: base-services.yml
+    #           service: celestus-dev
+    #       container_name: celestus-dev2
+    #       ports:
+    #         - 9092:9092
+    #       depends_on:
+    #               - vault-dev
+    #               - redis-dev
+    #               - postgres-dev
+
+    nginx:
+        extends:
+            file: ./docker-services/nginx-service.yml
+            service: nginx
+        depends_on:
+            - celestus
+    nginx-dev:
+        extends:
+            file: ./docker-services/nginx-service.yml
+            service: nginx-dev
+        ports:
+            - 8080:8080
+        depends_on:
+            - celestus-dev
+
+    redis:
+        extends:
+            file: ./docker-services/redis-service.yml
+            service: redis
+        depends_on:
+            - vault
+            - postgres
+    redis-dev:
+        extends:
+            file: ./docker-services/redis-service.yml
+            service: redis-dev
+        ports:
+            - 6380:6380
+        depends_on:
+            - vault-dev
+            - postgres-dev
+
+    postgres:
+        extends:
+            file: ./docker-services/postgres-service.yml
+            service: postgres
+        depends_on:
+            - vault
+    postgres-dev:
+        extends:
+            file: ./docker-services/postgres-service.yml
+            service: postgres-dev
+        ports:
+            - 5433:5433
+        depends_on:
+            - vault-dev
+
+volumes:
+    vault-data:
+    vault-data-dev:
+    celestus:
+    celestus-dev:
+    redis:
+    redis-dev:
+    postgres:
+        driver: local
+    postgres-dev:
+        driver: local

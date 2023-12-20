@@ -1,0 +1,30 @@
+services:
+    nginx:
+        build:
+            context: ../proxy/nginx
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: prod
+        image: nginx
+        container_name: nginx
+        ports:
+            - 80:80
+        restart: always
+        profiles:
+            - prod
+
+    nginx-dev:
+        build:
+            context: ../proxy/nginx
+            args:
+                DOCKER_BUILDKIT: 1
+            dockerfile: Dockerfile
+            target: dev
+        image: nginx-dev
+        container_name: nginx-dev
+        # ports:
+        #     - 8080:8080
+        restart: always
+        profiles:
+            - dev
