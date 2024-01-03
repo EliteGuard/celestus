@@ -1,5 +1,5 @@
 # Builder Stage
-FROM rust:1.71 AS base
+FROM rust:1.70 AS base
 ENV SQLX_OFFLINE=true
 
 # Create a new Rust project
