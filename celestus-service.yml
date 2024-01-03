@@ -34,13 +34,13 @@ services:
         #     - 9001:9001
         volumes:
             - .:/celestus
-        # env_file:
-        #     - ./configs/secrets/vault/dev.secrets.env
-        environment:
-            - NODE_ENV=development
-            - VAULT_HOST=vault-dev
-            - VAULT_PORT=8201
-            - VAULT_URL=http://vault-dev:8201
+        env_file:
+            - ./.env
+        # environment:
+        #     - NODE_ENV=development
+        #     - VAULT_HOST=vault-dev
+        #     - VAULT_PORT=8201
+        #     - VAULT_URL=http://vault-dev:8201
         restart: on-failure
         profiles:
             - dev
