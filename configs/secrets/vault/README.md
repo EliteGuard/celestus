@@ -8,7 +8,7 @@ vault auth enable approle - only once
 
 # Add policy
 
-path "kv/data/dev/celestus/\*" {
+path "kv/data/dev/celestus/*" {
 capabilities = [ "read" ]
 }
 
