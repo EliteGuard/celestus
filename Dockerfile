@@ -47,8 +47,5 @@ ENTRYPOINT ["./celestus"]
 
 
 #Dev stage
-FROM base AS build-dev
+FROM base AS dev
 RUN cargo install cargo-watch
-
-FROM build-dev AS dev
-RUN RUST_LOG=info cargo-watch -x run -i ./*.json

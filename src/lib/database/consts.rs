@@ -18,12 +18,12 @@ impl Consts {
     pub fn new(environment: &Environment) -> Self {
         let environment = *environment;
         let system_config_seed_file_path = match environment {
-            Environment::Prod => C_SYSTEM_CONFIG_SEED_FILE_PATH.to_string(),
-            Environment::Dev => C_SYSTEM_CONFIG_SEED_FILE_PATH_DEV.to_string(),
+            Environment::Production => C_SYSTEM_CONFIG_SEED_FILE_PATH.to_string(),
+            Environment::Development => C_SYSTEM_CONFIG_SEED_FILE_PATH_DEV.to_string(),
         };
         let role_group_seed_file_path = match environment {
-            Environment::Prod => C_ROLE_GROUP_SEED_FILE_PATH.to_string(),
-            Environment::Dev => C_ROLE_GROUP_SEED_FILE_PATH_DEV.to_string(),
+            Environment::Production => C_ROLE_GROUP_SEED_FILE_PATH.to_string(),
+            Environment::Development => C_ROLE_GROUP_SEED_FILE_PATH_DEV.to_string(),
         };
 
         Self {
