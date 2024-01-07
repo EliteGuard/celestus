@@ -2,7 +2,7 @@ use crate::utils::environment::get_env_var;
 use anyhow::{Ok, Result};
 use lru::LruCache;
 
-use super::consts::{ENV_VAR_OVERRIDE_VAULT, SETTING_OVERRIDE_VAULT};
+use super::consts::{SettingsTypes, APP_SETTINGS};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
@@ -37,28 +37,16 @@ fn load_settings<'a>(
     bools: &mut LruSettingsCache<'a, bool>,
     ints: &mut LruSettingsCache<'a, i32>,
 ) -> Result<()> {
-    let _ = import_settings(
-        bools,
-        vec![(
-            SETTING_OVERRIDE_VAULT,
-            get_env_var(ENV_VAR_OVERRIDE_VAULT, Some(false))?,
-        )],
-    );
-
-    let _ = import_settings(ints, vec![("qwe", 123)]);
-
-    Ok(())
-}
-
-fn import_settings<'a, Value>(
-    lru: &mut LruSettingsCache<'a, Value>,
-    settings: Vec<(&'a str, Value)>,
-) -> Result<()>
-where
-    Value: std::fmt::Debug + Copy,
-{
-    for setting in settings.iter() {
-        lru.push(setting.0, setting.1);
+    for setting in APP_SETTINGS.iter() {
+        match setting {
+            SettingsTypes::Bool(name, var, value) => {
+                bools.push(name, get_env_var(var, *value)?);
+            }
+            SettingsTypes::Int32(name, var, value) => {
+                ints.push(name, get_env_var(var, *value)?);
+            }
+        }
     }
+
     Ok(())
 }
