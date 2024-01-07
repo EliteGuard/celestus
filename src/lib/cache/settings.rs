@@ -1,4 +1,8 @@
+use std::env;
+
 use lru::LruCache;
+
+use super::consts::{SETTING_OVERRIDE_VAULT, ENV_VAR_OVERRIDE_VAULT};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
@@ -27,7 +31,10 @@ impl<'a> SettingsCache<'a> {
 }
 
 fn load_settings<'a>(bools: &mut LruSettingsCache<'a, bool>, ints: &mut LruSettingsCache<'a, i32>) {
-    import_settings(bools, vec![("asd", true)]);
+
+    let override_vault = env::var(ENV_VAR_OVERRIDE_VAULT).unwrap_or("false".to_string()).parse::<bool>().is_ok();
+    import_settings(bools, vec![(SETTING_OVERRIDE_VAULT, override_vault)]);  
+
     import_settings(ints, vec![("qwe", 123)]);
 }
 

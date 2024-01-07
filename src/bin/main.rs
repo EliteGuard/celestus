@@ -1,5 +1,5 @@
 use anyhow::Result;
-use celestus::{utils::environment::init_environment, cache::Cache};
+use celestus::{utils::environment::init_environment, cache::{Cache, consts::SETTING_OVERRIDE_VAULT}};
 use log::info;
 
 
@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     let mut cache = Cache::new();
 
 
-    info!("{:?}", cache.settings.get_bool("asd"));
+    info!("{:?}", cache.settings.get_bool(SETTING_OVERRIDE_VAULT));
     info!("{:?}", cache.settings.get_int("qwe"));
 
     Ok(())
