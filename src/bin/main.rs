@@ -10,8 +10,8 @@ fn main() -> Result<()> {
     let mut cache = Cache::new();
 
 
-    info!("{:?}", cache.get_settings().get_bool("asd"));
-    info!("{:?}", cache.get_settings().get_int("qwe"));
+    info!("{:?}", cache.settings.get_bool("asd"));
+    info!("{:?}", cache.settings.get_int("qwe"));
 
     Ok(())
 }
