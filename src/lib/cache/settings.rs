@@ -1,15 +1,40 @@
-use log::info;
 use lru::LruCache;
 
-pub type SettingsCache<'a> = LruCache<&'a str, &'a str>;
+pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
-pub fn load_settings<'a>(cache: &mut SettingsCache) {
-    import_settings(vec![("asd", "qwe")], cache);
+pub struct SettingsCache<'a> {
+    bools: LruSettingsCache<'a, bool>,
+    ints: LruSettingsCache<'a, i32>
 }
 
-fn import_settings<'a>(settings: Vec<(&'a str, &'a str)>, cache: &mut SettingsCache<'a>) {
-    for setting in settings.iter() {
-        cache.push(setting.to_owned().0, setting.to_owned().1);
+impl<'a> SettingsCache<'a> {
+    pub fn new() -> Self {
+        let mut lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
+        let mut lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
+
+        load_settings(&mut lru_bools, &mut lru_ints);
+
+        Self { bools: lru_bools, ints: lru_ints }
     }
-    info!("{:?}", cache.get(settings[0].0))
+
+    pub fn get_bool(&mut self, key: &str) -> Option<&bool> {
+        self.bools.get(key)
+    }
+
+    pub fn get_int(&mut self, key: &str) -> Option<&i32> {
+        self.ints.get(key)
+    }
+}
+
+fn load_settings<'a>(bools: &mut LruSettingsCache<'a, bool>, ints: &mut LruSettingsCache<'a, i32>) {
+    import_settings(bools, vec![("asd", true)]);
+    import_settings(ints, vec![("qwe", 123)]);
+}
+
+fn import_settings<'a, Value>(lru: &mut LruSettingsCache<'a, Value>, settings: Vec<(&'a str, Value)>) 
+where Value: std::fmt::Debug + Copy
+{
+    for setting in settings.iter() {
+        lru.push(setting.0, setting.1);
+    }
 }
