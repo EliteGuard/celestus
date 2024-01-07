@@ -6,8 +6,15 @@ pub enum SettingsTypes<'a> {
     Int32(&'a str, &'a str, Option<i32>),
 }
 
-pub const APP_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::Bool(
+pub type AppSettings = &'static [&'static [&'static SettingsTypes<'static>]];
+
+pub const APP_SETTINGS: AppSettings = &[BOOL_SETTINGS, INT32_SETTINGS];
+
+const BOOL_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::Bool(
     SETTING_OVERRIDE_VAULT,
     ENV_VAR_OVERRIDE_VAULT,
-    None,
+    Some(false),
 )];
+
+const INT32_SETTINGS: &'static [&'static SettingsTypes] =
+    &[&SettingsTypes::Int32("some_int", "some_int", Some(123))];

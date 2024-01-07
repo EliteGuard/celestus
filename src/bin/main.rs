@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     let mut cache = Cache::new();
 
     info!("{:?}", cache.settings.get_bool(SETTING_OVERRIDE_VAULT));
-    info!("{:?}", cache.settings.get_int("qwe"));
+    info!("{:?}", cache.settings.get_int("some_int"));
 
     Ok(())
 }
