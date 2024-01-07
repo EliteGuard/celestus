@@ -1,8 +1,7 @@
-use std::env;
+use std::{env, fmt::Display, str::FromStr};
 
-use log::info;
-
-
+use anyhow::Error;
+use log::{info, warn};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Environment {
@@ -36,7 +35,7 @@ pub enum HostType {
 }
 
 pub fn is_docker() -> bool {
-    let process_id_1 = procfs::process:: all_processes()
+    let process_id_1 = procfs::process::all_processes()
         .expect("Can't read /proc")
         .find(|proc| {
             let stats = proc.as_ref().unwrap().stat().unwrap();
@@ -68,7 +67,7 @@ pub fn get_host_type() -> HostType {
 pub fn init_environment() {
     if is_dev() {
         init_dev();
-    } else if is_prod(){
+    } else if is_prod() {
         init_prod();
     }
 }
@@ -99,5 +98,42 @@ pub fn init_prod() {
         info!("Will not look for .env file");
     } else {
         info!("Will not look for .env file");
+    }
+}
+
+pub fn get_env_var<VarType>(name: &str, default: Option<VarType>) -> Result<VarType, Error>
+where
+    VarType: FromStr + Display,
+    <VarType as FromStr>::Err: std::fmt::Debug,
+{
+    let result: VarType;
+    if let Some(value) = default {
+        result = env::var(name)
+            .unwrap_or_else(|_| {
+                warn!(
+                    "Environment variable {} is not defined. Defaulting to {}",
+                    name, value
+                );
+                value.to_string()
+            })
+            .parse::<VarType>()
+            .unwrap_or(value);
+        Ok(result)
+    } else {
+        let result = env::var(name)
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Environment variable {} is not defined, and a default value is not assigned",
+                    name
+                )
+            })
+            .parse()
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Environment variable {} is defined but it's type cannot be read.",
+                    name
+                )
+            });
+        Ok(result)
     }
 }
