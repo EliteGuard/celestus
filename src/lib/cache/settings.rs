@@ -35,6 +35,14 @@ impl<'a> SettingsCache<'a> {
     pub fn get_int(&mut self, key: &str) -> Option<&i32> {
         self.ints.get(key)
     }
+
+    pub fn set_bool(&mut self, key: &'a str, val: &bool) -> Option<bool> {
+        self.bools.put(key, *val)
+    }
+
+    pub fn set_int(&mut self, key: &'a str, val: &i32) -> Option<i32> {
+        self.ints.put(key, *val)
+    }
 }
 
 fn load_settings<'a>(
