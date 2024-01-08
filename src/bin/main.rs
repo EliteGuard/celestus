@@ -1,7 +1,7 @@
 use anyhow::Result;
 use celestus::{
-    cache::{consts::SETTING_USE_SECRETS_PROVIDER, Cache},
-    utils::environment::init_environment,
+    cache::Cache,
+    utils::environment::init_environment, providers::secrets::SETTING_USE_SECRETS_PROVIDER,
 };
 use log::info;
 

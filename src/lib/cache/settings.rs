@@ -1,16 +1,26 @@
-use std::num::NonZeroUsize;
+use std::{num::NonZeroUsize, collections::HashMap};
 
-use crate::utils::environment::get_env_var;
+use crate::{utils::environment::get_env_var, providers::secrets::SecretsProviders};
 use anyhow::{Ok, Result};
 use lru::LruCache;
 
-use super::consts::{SettingsTypes, APP_SETTINGS, INT32_SETTINGS, BOOL_SETTINGS};
+use super::consts::{ APP_SETTINGS, INT32_SETTINGS, BOOL_SETTINGS};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
 pub struct SettingsCache<'a> {
     bools: LruSettingsCache<'a, bool>,
     ints: LruSettingsCache<'a, i32>,
+    hashmaps: HashMap<&'a str, HashMapValueTypes<'a>>
+}
+
+enum HashMapValueTypes<'a> {      
+    SecretsProvider(SecretsProviders<'a>),
+}
+
+pub enum SettingsTypes<'a> {
+    Bool(&'a str, &'a str, Option<bool>),
+    Int32(&'a str, &'a str, Option<i32>),
 }
 
 impl<'a> SettingsCache<'a> {
@@ -19,12 +29,14 @@ impl<'a> SettingsCache<'a> {
             LruCache::new(NonZeroUsize::new(BOOL_SETTINGS.len()).unwrap());
         let mut lru_ints: LruSettingsCache<i32> =
             LruCache::new(NonZeroUsize::new(INT32_SETTINGS.len()).unwrap());
+        let mut hashmaps = HashMap::<&str, HashMapValueTypes>::new();
 
         let _ = load_settings(&mut lru_bools, &mut lru_ints);
 
         Self {
             bools: lru_bools,
             ints: lru_ints,
+            hashmaps: hashmaps
         }
     }
 
