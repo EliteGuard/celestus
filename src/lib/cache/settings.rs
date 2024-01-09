@@ -1,20 +1,20 @@
-use std::{num::NonZeroUsize, collections::HashMap};
+use std::{collections::HashMap, num::NonZeroUsize};
 
-use crate::{utils::environment::get_env_var, providers::secrets::SecretsProviders};
+use crate::{providers::secrets::SecretsProviders, utils::environment::get_env_var};
 use anyhow::{Ok, Result};
 use lru::LruCache;
 
-use super::consts::{ APP_SETTINGS, INT32_SETTINGS, BOOL_SETTINGS};
+use super::consts::{APP_SETTINGS, BOOL_SETTINGS, INT32_SETTINGS};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
 pub struct SettingsCache<'a> {
     bools: LruSettingsCache<'a, bool>,
     ints: LruSettingsCache<'a, i32>,
-    hashmaps: HashMap<&'a str, HashMapValueTypes<'a>>
+    hashmaps: HashMap<&'a str, HashMapValueTypes<'a>>,
 }
 
-enum HashMapValueTypes<'a> {      
+pub enum HashMapValueTypes<'a> {
     SecretsProvider(SecretsProviders<'a>),
 }
 
@@ -36,7 +36,7 @@ impl<'a> SettingsCache<'a> {
         Self {
             bools: lru_bools,
             ints: lru_ints,
-            hashmaps: hashmaps
+            hashmaps: hashmaps,
         }
     }
 
@@ -48,12 +48,24 @@ impl<'a> SettingsCache<'a> {
         self.ints.get(key)
     }
 
-    pub fn set_bool(&mut self, key: &'a str, val: &bool) -> Option<bool> {
-        self.bools.put(key, *val)
+    pub fn get_hashmap(&mut self, key: &'a str) -> Option<&HashMapValueTypes> {
+        self.hashmaps.get(key)
     }
 
-    pub fn set_int(&mut self, key: &'a str, val: &i32) -> Option<i32> {
-        self.ints.put(key, *val)
+    pub fn set_bool(&mut self, key: &'a str, val: bool) -> Option<bool> {
+        self.bools.put(key, val)
+    }
+
+    pub fn set_int(&mut self, key: &'a str, val: i32) -> Option<i32> {
+        self.ints.put(key, val)
+    }
+
+    pub fn set_hashmap(
+        &mut self,
+        key: &'a str,
+        val: HashMapValueTypes<'a>,
+    ) -> Option<HashMapValueTypes> {
+        self.hashmaps.insert(key, val)
     }
 }
 

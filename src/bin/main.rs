@@ -1,7 +1,7 @@
 use anyhow::Result;
 use celestus::{
-    cache::Cache,
-    utils::environment::init_environment, providers::secrets::SETTING_USE_SECRETS_PROVIDER,
+    cache::Cache, providers::secrets::SETTING_USE_SECRETS_PROVIDER,
+    utils::environment::init_environment,
 };
 use log::info;
 
@@ -11,12 +11,13 @@ fn main() -> Result<()> {
     init_environment();
     let mut cache = Cache::new();
 
-    info!("{:?}", cache.settings.get_bool(SETTING_USE_SECRETS_PROVIDER));
+    info!(
+        "{:?}",
+        cache.settings.get_bool(SETTING_USE_SECRETS_PROVIDER)
+    );
 
-
-    
     info!("{:?}", cache.settings.get_int("some_int"));
-    cache.settings.set_int("some_int", &456);
+    cache.settings.set_int("some_int", 456);
     info!("{:?}", cache.settings.get_int("some_int"));
 
     Ok(())
