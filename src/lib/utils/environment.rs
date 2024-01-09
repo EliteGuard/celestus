@@ -3,30 +3,39 @@ use std::{env, fmt::Display, str::FromStr};
 use anyhow::Error;
 use log::{info, warn};
 
-#[derive(Clone, Copy, PartialEq)]
+pub const SETTING_HOST_MODE: &str = "host_mode";
+
+pub const SETTING_HOST_ENVIRONMENT: &str = "host_environment";
+pub const ENV_HOST_ENVIRONMENT: &str = "HOST_ENVIRONMENT";
+
+#[derive(Clone, Copy, PartialEq, strum_macros::EnumString, strum_macros::Display)]
 pub enum Environment {
     Production,
     Development,
 }
 
-pub fn is_dev() -> bool {
+#[derive(strum_macros::EnumString, strum_macros::Display)]
+pub enum HostMode {
+    Production,
+    Development,
+}
+
+pub fn is_dev_mode() -> bool {
     if cfg!(debug_assertions) {
-        info!("Running in development mode.");
         return true;
     }
-    info!("Running in production mode.");
     false
 }
 
-pub fn is_prod() -> bool {
-    !is_dev()
+pub fn is_prod_mode() -> bool {
+    !is_dev_mode()
 }
 
-pub fn get_environment() -> Environment {
-    if is_dev() {
-        return Environment::Development;
+pub fn get_host_mode() -> HostMode {
+    if is_dev_mode() {
+        return HostMode::Development;
     }
-    Environment::Production
+    HostMode::Production
 }
 
 pub enum HostType {
@@ -34,7 +43,7 @@ pub enum HostType {
     Container,
 }
 
-pub fn is_docker() -> bool {
+pub fn is_docker_host() -> bool {
     let process_id_1 = procfs::process::all_processes()
         .expect("Can't read /proc")
         .find(|proc| {
@@ -53,27 +62,29 @@ pub fn is_docker() -> bool {
     }
 }
 
-pub fn is_local() -> bool {
-    !is_docker()
+pub fn is_local_host() -> bool {
+    !is_docker_host()
 }
 
 pub fn get_host_type() -> HostType {
-    if is_docker() {
+    if is_docker_host() {
         return HostType::Container;
     }
     HostType::Local
 }
 
 pub fn init_environment() {
-    if is_dev() {
-        init_dev();
-    } else if is_prod() {
-        init_prod();
+    if is_dev_mode() {
+        info!("Running in development mode.");
+        init_dev_environment();
+    } else if is_prod_mode() {
+        info!("Running in production mode.");
+        init_prod_environment();
     }
 }
 
-pub fn init_dev() {
-    if is_local() {
+pub fn init_dev_environment() {
+    if is_local_host() {
         info!("Loading .env file");
         dotenvy::from_path(".env").expect("No .env file found!");
     } else {
@@ -82,19 +93,21 @@ pub fn init_dev() {
 
     let env = env::var("HOST_ENVIRONMENT")
         .expect("Unknown environment! Environment variable HOST_ENVIRONMENT must be set!");
-    match env.as_str() {
+    match env.to_lowercase().as_str() {
         "dev" => Environment::Development,
+        "development" => Environment::Development,
         "prod" => Environment::Production,
+        "production" => Environment::Production,
         val => panic!(
             "Unknown value \"{}\" for environment variable HOST_ENVIRONMENT!",
             val
         ),
     };
-    info!("Behaving like {} (determined by HOST_ENVIRONMENT)", env);
+    info!("Runnign like {} environment (determined by HOST_ENVIRONMENT)", env);
 }
 
-pub fn init_prod() {
-    if is_local() {
+pub fn init_prod_environment() {
+    if is_local_host() {
         info!("Will not look for .env file");
     } else {
         info!("Will not look for .env file");
