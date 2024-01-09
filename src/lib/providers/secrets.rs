@@ -14,20 +14,14 @@ pub const SETTING_SECRETS_PROVIDERS: &str = "secrets_providers";
 pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
 #[derive(Debug, Clone, Deserialize, Getters)]
+#[get = "pub with_prefix"]
 pub struct SecretsProvider {
-    #[getset(get = "pub")]
     name: Option<String>,
-    #[getset(get = "pub")]
     prefix: Option<String>,
-    #[getset(get = "pub")]
     host: Option<String>,
-    #[getset(get = "pub")]
     port: Option<i32>,
-    #[getset(get = "pub")]
     url: Option<String>,
-    #[getset(get = "pub")]
     login_id: Option<String>,
-    #[getset(get = "pub")]
     login_pass: Option<String>,
 }
 
