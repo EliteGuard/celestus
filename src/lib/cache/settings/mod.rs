@@ -1,10 +1,15 @@
 pub mod consts;
 
-use std::{collections::HashMap, num::NonZeroUsize};
 use core::result::Result::Ok;
+use std::{collections::HashMap, num::NonZeroUsize};
 
-use crate::{providers::secrets::{SecretsProviders, SETTING_SECRETS_PROVIDERS, ENV_USE_SECRETS_PROVIDER, SETTING_USE_SECRETS_PROVIDER}, utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE}};
-use anyhow::{Result};
+use crate::{
+    providers::secrets::{
+        SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
+    },
+    utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
+};
+use anyhow::Result;
 use log::error;
 use lru::LruCache;
 use tracing::info;
@@ -17,36 +22,42 @@ pub struct SettingsCache<'a> {
     bools: LruSettingsCache<'a, bool>,
     ints: LruSettingsCache<'a, i32>,
     strings: LruSettingsCache<'a, String>,
-    hashmaps: HashMap<&'a str, HashMapValueTypes<'a>>,
+    hashmaps: HashMap<&'a str, HashMapValueTypes>,
 }
 
-pub enum HashMapValueTypes<'a> {
-    SecretsProviders(SecretsProviders<'a>),
+#[derive(Debug)]
+pub enum HashMapValueTypes {
+    SecretsProviders(SecretsProviders),
 }
 
 pub enum SettingsTypes<'a> {
     Bool(&'a str, &'a str, Option<bool>),
     Int32(&'a str, &'a str, Option<i32>),
     String(&'a str, &'a str, Option<String>),
-    Hashmap(&'a str, HashMapValueTypes<'a>),
+    Hashmap(&'a str, HashMapValueTypes),
 }
 
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
         let mut lru_bools: LruSettingsCache<bool> =
             LruCache::new(NonZeroUsize::new(BOOL_SETTINGS.len()).unwrap());
-        
+
         let mut lru_ints: LruSettingsCache<i32> =
             LruCache::new(NonZeroUsize::new(INT32_SETTINGS.len()).unwrap());
 
         let mut lru_strings: LruSettingsCache<String> = LruCache::unbounded();
         lru_strings.push(SETTING_HOST_MODE, get_host_mode().to_string());
-        
+
         let mut hashmaps = HashMap::<&str, HashMapValueTypes>::new();
 
-        match load_settings(&mut lru_bools, &mut lru_ints, &mut lru_strings, &mut hashmaps) {
-            Ok(_)=> info!("All settings have bee loaded successfully!"),
-            Err(err) => error!("{}", err)
+        match load_settings(
+            &mut lru_bools,
+            &mut lru_ints,
+            &mut lru_strings,
+            &mut hashmaps,
+        ) {
+            Ok(_) => info!("All settings have bee loaded successfully!"),
+            Err(err) => error!("{}", err),
         }
 
         Self {
@@ -73,32 +84,32 @@ impl<'a> SettingsCache<'a> {
         self.hashmaps.get(key)
     }
 
-    pub fn set_bool(&mut self, key: &'a str, val: bool) -> Option<bool> {
-        self.bools.put(key, val)
-    }
+    // pub fn set_bool(&mut self, key: &'a str, val: bool) -> Option<bool> {
+    //     self.bools.put(key, val)
+    // }
 
-    pub fn set_int(&mut self, key: &'a str, val: i32) -> Option<i32> {
-        self.ints.put(key, val)
-    }
+    // pub fn set_int(&mut self, key: &'a str, val: i32) -> Option<i32> {
+    //     self.ints.put(key, val)
+    // }
 
-    pub fn set_string(&mut self, key: &'a str, val: String) -> Option<String> {
-        self.strings.put(key, val)
-    }
+    // pub fn set_string(&mut self, key: &'a str, val: String) -> Option<String> {
+    //     self.strings.put(key, val)
+    // }
 
-    pub fn set_hashmap(
-        &mut self,
-        key: &'a str,
-        val: HashMapValueTypes<'a>,
-    ) -> Option<HashMapValueTypes> {
-        self.hashmaps.insert(key, val)
-    }
+    // pub fn set_hashmap(
+    //     &mut self,
+    //     key: &'a str,
+    //     val: HashMapValueTypes,
+    // ) -> Option<HashMapValueTypes> {
+    //     self.hashmaps.insert(key, val)
+    // }
 }
 
 fn load_settings<'a>(
     bools: &mut LruSettingsCache<'a, bool>,
     ints: &mut LruSettingsCache<'a, i32>,
     strings: &mut LruSettingsCache<'a, String>,
-    hashmaps: &mut HashMap<&'a str, HashMapValueTypes>
+    hashmaps: &mut HashMap<&'a str, HashMapValueTypes>,
 ) -> Result<()> {
     for setting_type in APP_SETTINGS.iter() {
         for setting in setting_type.iter() {
@@ -112,14 +123,17 @@ fn load_settings<'a>(
                 SettingsTypes::String(name, var, value) => {
                     strings.push(name, get_env_var(var, value.to_owned())?);
                 }
-                _ => ()
+                _ => (),
             }
         }
     }
 
     if let Some(use_providers) = bools.get(SETTING_USE_SECRETS_PROVIDER) {
-        if *use_providers  {
-            hashmaps.insert(SETTING_SECRETS_PROVIDERS, HashMapValueTypes::SecretsProviders(SecretsProviders::new()));
+        if *use_providers {
+            hashmaps.insert(
+                SETTING_SECRETS_PROVIDERS,
+                HashMapValueTypes::SecretsProviders(SecretsProviders::new()),
+            );
         }
     }
 

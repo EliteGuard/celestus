@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use getset::Getters;
+use itertools::Itertools;
 use log::warn;
 use serde::Deserialize;
 
@@ -11,19 +13,27 @@ pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
 pub const SETTING_SECRETS_PROVIDERS: &str = "secrets_providers";
 pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
-#[derive(Debug, Deserialize)]
-pub struct SecretsProvider<'a>{
-    name: Option<&'a str>,
-    prefix: Option<&'a str>,
-    host: Option<&'a str>,
+#[derive(Debug, Clone, Deserialize, Getters)]
+pub struct SecretsProvider {
+    #[getset(get = "pub")]
+    name: Option<String>,
+    #[getset(get = "pub")]
+    prefix: Option<String>,
+    #[getset(get = "pub")]
+    host: Option<String>,
+    #[getset(get = "pub")]
     port: Option<i32>,
-    url: Option<&'a str>,
-    login_id: Option<&'a str>,
-    login_pass: Option<&'a str>,
+    #[getset(get = "pub")]
+    url: Option<String>,
+    #[getset(get = "pub")]
+    login_id: Option<String>,
+    #[getset(get = "pub")]
+    login_pass: Option<String>,
 }
 
-pub struct SecretsProviders<'a> {
-    providers: HashMap<&'a str, SecretsProvider<'a>>
+#[derive(Debug)]
+pub struct SecretsProviders {
+    pub providers: HashMap<String, SecretsProvider>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -32,30 +42,65 @@ struct SecretsProvidersEnvVar {
     secrets_providers: Option<Vec<String>>,
 }
 
-impl<'a> SecretsProviders<'a> {
+impl SecretsProviders {
     pub fn new() -> Self {
-        
         let secrets_providers = match envy::from_env::<SecretsProvidersEnvVar>() {
             Ok(config) => config.secrets_providers,
             Err(_) => {
-                warn!("{} is set to TRUE, but environment variable {} is not found", ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS);
+                warn!(
+                    "{} is set to TRUE, but environment variable {} is not found",
+                    ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS
+                );
                 None
             }
         };
+        //info!("{:?}", secrets_providers);
 
         let found_secrets_providers = vec_to_uppercase(&mut secrets_providers.unwrap_or(vec![]));
-        
-        for provider in found_secrets_providers.iter() {
-            let prefixed = format!("{}_", provider);
-            match envy::prefixed(prefixed).from_env::<SecretsProvider>() {
-                Ok(sec_prov) => println!("{:#?}", sec_prov),
-                Err(error) => panic!("{:#?}", error)
-            }
-        }
-        
 
-        let providers = HashMap::<&str, SecretsProvider>::new();
+        let references = found_secrets_providers
+            .iter()
+            .map(|s| s.as_str())
+            .collect_vec();
+
+        let mut read_providers = load_secrets_providers(&references);
+
+        let valid_providers: Vec<SecretsProvider> = read_providers
+            .iter_mut()
+            .filter_map(|p| {
+                if let Some(pn) = &p.name {
+                    let new_name = pn;
+                    p.name = Some(new_name.to_string().to_lowercase());
+                    return Some(p.to_owned());
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let mut providers = HashMap::<String, SecretsProvider>::new();
+
+        for mut provider in valid_providers.into_iter() {
+            providers.insert(provider.name.as_mut().unwrap().to_string(), provider);
+        }
 
         Self { providers }
     }
+}
+
+fn load_secrets_providers<'a>(providers_names: &'a Vec<&'a str>) -> Vec<SecretsProvider> {
+    let mut read: Vec<SecretsProvider> = [].to_vec();
+
+    for provider in providers_names.iter() {
+        let mut result =
+            match envy::prefixed(format!("{}_", provider)).from_env::<SecretsProvider>() {
+                Ok(sec_prov) => sec_prov,
+                Err(error) => panic!("{:#?}", error),
+            };
+        result.name = Some(provider.to_string());
+        result.prefix = Some(format!("{}_", provider));
+        read.push(result.to_owned());
+    }
+
+    return read;
 }

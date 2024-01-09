@@ -1,4 +1,7 @@
-use crate::{providers::secrets::{ENV_USE_SECRETS_PROVIDER, SETTING_USE_SECRETS_PROVIDER}, utils::environment::{SETTING_HOST_MODE, ENV_HOST_ENVIRONMENT, Environment}};
+use crate::{
+    providers::secrets::{ENV_USE_SECRETS_PROVIDER, SETTING_USE_SECRETS_PROVIDER},
+    utils::environment::{ENV_HOST_ENVIRONMENT, SETTING_HOST_MODE},
+};
 
 use super::SettingsTypes;
 
@@ -15,5 +18,8 @@ pub const BOOL_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::B
 pub const INT32_SETTINGS: &'static [&'static SettingsTypes] =
     &[&SettingsTypes::Int32("some_int", "some_int", Some(123))];
 
-pub const STRING_SETTINGS: &'static [&'static SettingsTypes] =
-    &[&SettingsTypes::String(SETTING_HOST_MODE, ENV_HOST_ENVIRONMENT, None)];
+pub const STRING_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::String(
+    SETTING_HOST_MODE,
+    ENV_HOST_ENVIRONMENT,
+    None,
+)];

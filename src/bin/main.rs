@@ -1,6 +1,7 @@
 use anyhow::Result;
 use celestus::{
-    cache::Cache, providers::secrets::{SETTING_USE_SECRETS_PROVIDER, SETTING_SECRETS_PROVIDERS},
+    cache::{settings::HashMapValueTypes, Cache},
+    providers::secrets::{SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER},
     utils::environment::init_environment,
 };
 use log::info;
@@ -15,11 +16,16 @@ fn main() -> Result<()> {
         "{:?}",
         cache.settings.get_bool(SETTING_USE_SECRETS_PROVIDER)
     );
-    // info!("{:?}", cache.settings.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap().);
 
-    info!("{:?}", cache.settings.get_int("some_int"));
-    cache.settings.set_int("some_int", 456);
-    info!("{:?}", cache.settings.get_int("some_int"));
+    let providers = cache
+        .settings
+        .get_hashmap(SETTING_SECRETS_PROVIDERS)
+        .unwrap();
+    match providers {
+        HashMapValueTypes::SecretsProviders(sp) => {
+            info!("{:#?}", sp.providers);
+        }
+    }
 
     Ok(())
 }

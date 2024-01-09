@@ -103,7 +103,10 @@ pub fn init_dev_environment() {
             val
         ),
     };
-    info!("Runnign like {} environment (determined by HOST_ENVIRONMENT)", env);
+    info!(
+        "Runnign like {} environment (determined by HOST_ENVIRONMENT)",
+        env
+    );
 }
 
 pub fn init_prod_environment() {
