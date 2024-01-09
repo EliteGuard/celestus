@@ -1,6 +1,6 @@
 use crate::providers::secrets::{ENV_USE_SECRETS_PROVIDER, SETTING_USE_SECRETS_PROVIDER};
 
-use super::settings::SettingsTypes;
+use super::SettingsTypes;
 
 pub type AppSettings = &'static [&'static [&'static SettingsTypes<'static>]];
 

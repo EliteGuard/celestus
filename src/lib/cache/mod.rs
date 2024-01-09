@@ -1,6 +1,5 @@
 use self::settings::SettingsCache;
 
-pub mod consts;
 pub mod settings;
 
 pub struct Cache<'a> {

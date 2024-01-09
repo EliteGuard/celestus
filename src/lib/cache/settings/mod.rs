@@ -1,10 +1,12 @@
+pub mod consts;
+
 use std::{collections::HashMap, num::NonZeroUsize};
 
 use crate::{providers::secrets::SecretsProviders, utils::environment::get_env_var};
 use anyhow::{Ok, Result};
 use lru::LruCache;
 
-use super::consts::{APP_SETTINGS, BOOL_SETTINGS, INT32_SETTINGS};
+use self::consts::{APP_SETTINGS, BOOL_SETTINGS, INT32_SETTINGS};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
@@ -77,10 +79,10 @@ fn load_settings<'a>(
         for setting in setting_type.iter() {
             match setting {
                 SettingsTypes::Bool(name, var, value) => {
-                    bools.push(name, get_env_var(var, *value)?);
+                    bools.push(name, get_env_var(var, value.to_owned())?);
                 }
                 SettingsTypes::Int32(name, var, value) => {
-                    ints.push(name, get_env_var(var, *value)?);
+                    ints.push(name, get_env_var(var, value.to_owned())?);
                 }
             }
         }

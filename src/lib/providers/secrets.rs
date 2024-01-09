@@ -6,7 +6,7 @@ pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
 pub const SETTING_SECRETS_PROVIDERS: &str = "secrets_providers";
 pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
-#[derive(Default, serde::Deserialize, derive_builder::Builder)]
+#[derive(Default, serde_derive::Deserialize, derive_builder::Builder)]
 #[builder(default)]
 #[builder(setter(strip_option))]
 pub struct SecretsProvider<'a>{
