@@ -23,7 +23,7 @@ gpg --output - --export-secret-key SOMEKEYID |\
     gpg --armor --output keys.asc --symmetric --cipher-algo AES256` \
 
 And then import from the resulting keys.asc file: \
-`gpg --output - keys.asc | gpg --impor`
+`gpg --output - keys.asc | gpg --import`
 
 ### Remotely
 
