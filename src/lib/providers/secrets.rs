@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use getset::Getters;
-use itertools::Itertools;
-use log::warn;
+use log::error;
 use serde::Deserialize;
 
 use crate::utils::strings::vec_to_uppercase;
+
+use super::{DataProvider, DataProvision, DataProviderConnectivity};
 
 pub const SETTING_USE_SECRETS_PROVIDER: &str = "use_secrets_provider";
 pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
@@ -13,21 +13,19 @@ pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
 pub const SETTING_SECRETS_PROVIDERS: &str = "secrets_providers";
 pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
-#[derive(Debug, Clone, Deserialize, Getters)]
-#[get = "pub with_prefix"]
-pub struct SecretsProvider {
-    name: Option<String>,
-    prefix: Option<String>,
-    host: Option<String>,
-    port: Option<i32>,
-    url: Option<String>,
-    login_id: Option<String>,
-    login_pass: Option<String>,
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct SecretsProviderData {
+    host: String,
+    port: i32,
+    url: String,
+    login_id: String,
+    login_pass: String,
 }
 
 #[derive(Debug)]
 pub struct SecretsProviders {
-    pub providers: HashMap<String, SecretsProvider>,
+    pub providers: HashMap<String, DataProvider<SecretsProviderData>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -41,59 +39,51 @@ impl SecretsProviders {
         let secrets_providers = match envy::from_env::<SecretsProvidersEnvVar>() {
             Ok(config) => config.secrets_providers,
             Err(_) => {
-                warn!(
+                panic!(
                     "{} is set to TRUE, but environment variable {} is not found",
                     ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS
-                );
-                None
+                )
             }
         };
-        //info!("{:?}", secrets_providers);
 
         let found_secrets_providers = vec_to_uppercase(&mut secrets_providers.unwrap_or(vec![]));
 
-        let references = found_secrets_providers
-            .iter()
-            .map(|s| s.as_str())
-            .collect_vec();
+        let read_providers = load_secrets_providers(&found_secrets_providers);
 
-        let mut read_providers = load_secrets_providers(&references);
+        let mut providers = HashMap::<String, DataProvider<SecretsProviderData>>::new();
 
-        let valid_providers: Vec<SecretsProvider> = read_providers
-            .iter_mut()
-            .filter_map(|p| {
-                if let Some(pn) = &p.name {
-                    let new_name = pn;
-                    p.name = Some(new_name.to_string().to_lowercase());
-                    return Some(p.to_owned());
-                } else {
-                    None
-                }
-            })
-            .collect();
+        for provider in read_providers.into_iter() {
+            providers.insert(provider.get_name().to_string(), provider);
+        }
 
-        let mut providers = HashMap::<String, SecretsProvider>::new();
-
-        for mut provider in valid_providers.into_iter() {
-            providers.insert(provider.name.as_mut().unwrap().to_string(), provider);
+        if providers.len() < 1 {
+            error!("{} is set to TRUE, environment variable {} is found, but the listed providers names are misspelled, or their additional attributes are not provided (host, port, etc.)",
+            ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS)
         }
 
         Self { providers }
     }
 }
 
-fn load_secrets_providers<'a>(providers_names: &'a Vec<&'a str>) -> Vec<SecretsProvider> {
-    let mut read: Vec<SecretsProvider> = [].to_vec();
+fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvider<SecretsProviderData>> {
+    let mut read: Vec<DataProvider<SecretsProviderData>> = [].to_vec();
 
     for provider in providers_names.iter() {
-        let mut result =
-            match envy::prefixed(format!("{}_", provider)).from_env::<SecretsProvider>() {
+        let result =
+            match envy::prefixed(format!("{}_", provider)).from_env::<SecretsProviderData>() {
                 Ok(sec_prov) => sec_prov,
-                Err(error) => panic!("{:#?}", error),
+                Err(error) => panic!("Encountered error during loading of Secrets Provider, the name \"{}\": {:#?} might be misspelled or related variables are missing", provider, error),
             };
-        result.name = Some(provider.to_string());
-        result.prefix = Some(format!("{}_", provider));
-        read.push(result.to_owned());
+
+        read.push(
+            DataProvider
+            { 
+                name: provider.to_string().to_lowercase(), 
+                prefix: format!("{}_", provider.to_string().to_lowercase()), 
+                basic_info: result.to_owned(), provision_type: DataProvision::OneTime, 
+                connectivity: DataProviderConnectivity::SingleConnection
+            }
+        );
     }
 
     return read;
