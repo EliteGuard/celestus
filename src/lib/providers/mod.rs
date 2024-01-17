@@ -15,7 +15,7 @@ pub enum DataProviderConnectivity {
     ConnectionPool
 }
 
-#[derive(Debug, Clone, Builder, Getters)]
+#[derive(Clone, Builder, Getters)]
 #[getset(get = "pub with_prefix")]
 pub struct DataProvider<BasicInfo> {
     name: String,

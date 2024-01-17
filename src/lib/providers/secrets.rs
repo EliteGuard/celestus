@@ -13,7 +13,7 @@ pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
 pub const SETTING_SECRETS_PROVIDERS: &str = "secrets_providers";
 pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[allow(dead_code)]
 pub struct SecretsProviderData {
     host: String,
@@ -23,7 +23,6 @@ pub struct SecretsProviderData {
     login_pass: String,
 }
 
-#[derive(Debug)]
 pub struct SecretsProviders {
     pub providers: HashMap<String, DataProvider<SecretsProviderData>>,
 }

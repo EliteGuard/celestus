@@ -25,7 +25,6 @@ pub struct SettingsCache<'a> {
     hashmaps: HashMap<&'a str, HashMapValueTypes>,
 }
 
-#[derive(Debug)]
 pub enum HashMapValueTypes {
     SecretsProviders(SecretsProviders),
 }
