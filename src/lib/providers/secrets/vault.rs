@@ -8,3 +8,9 @@ use vaultrs::client::{Client, VaultClient, VaultClientSettingsBuilder};
 //         .build()
 //         .unwrap()
 // ).unwrap();
+
+pub struct Vault {
+    connectivity: DataProviderConnectivity,
+    provision_type: DataProvision,
+    client: Optoin<VaultClient>
+}

@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use log::error;
 use serde::Deserialize;
 
 use crate::utils::strings::vec_to_uppercase;
 
-use super::{DataProvider, DataProvision, DataProviderConnectivity};
+use super::DataProvider;
 
 pub const SETTING_USE_SECRETS_PROVIDER: &str = "use_secrets_provider";
 pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
@@ -24,13 +23,21 @@ pub struct SecretsProviderData {
 }
 
 pub struct SecretsProviders {
-    pub providers: HashMap<String, DataProvider<SecretsProviderData>>,
+    pub providers: HashMap<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 struct SecretsProvidersEnvVar {
     secrets_providers: Option<Vec<String>>,
+}
+
+#[derive(Clone, Copy)]
+pub struct Vault;
+
+#[derive(Clone, Copy)]
+pub enum SecretsProviderImplementation{
+    Vault(Vault)
 }
 
 impl SecretsProviders {
@@ -49,7 +56,7 @@ impl SecretsProviders {
 
         let read_providers = load_secrets_providers(&found_secrets_providers);
 
-        let mut providers = HashMap::<String, DataProvider<SecretsProviderData>>::new();
+        let mut providers = HashMap::<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>::new();
 
         for provider in read_providers.into_iter() {
             providers.insert(provider.get_name().to_string(), provider);
@@ -59,8 +66,8 @@ impl SecretsProviders {
     }
 }
 
-fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvider<SecretsProviderData>> {
-    let mut read: Vec<DataProvider<SecretsProviderData>> = [].to_vec();
+fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
+    let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> = [].to_vec();
 
     for provider in providers_names.iter() {
         let result =
@@ -74,9 +81,9 @@ fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvi
             { 
                 name: provider.to_string().to_lowercase(), 
                 prefix: format!("{}_", provider.to_string().to_lowercase()), 
-                basic_info: result.to_owned(), provision_type: DataProvision::OneTime, 
-                connectivity: DataProviderConnectivity::SingleConnection
-            }
+                basic_info: result.to_owned(),
+                implementation: None
+            },
         );
     }
 
