@@ -23,5 +23,7 @@ pub struct DataProvider<BasicInfo, Implementation> {
     #[getset(skip)]
     #[allow(dead_code)]
     basic_info: BasicInfo,
+    provision_type: DataProvision,
+    connectivity: DataProviderConnectivity,
     implementation: Option<Implementation>
 }

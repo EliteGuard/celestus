@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::utils::strings::vec_to_uppercase;
 
-use super::DataProvider;
+use super::{DataProvider, DataProviderConnectivity, DataProvision};
 
 pub const SETTING_USE_SECRETS_PROVIDER: &str = "use_secrets_provider";
 pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
@@ -82,6 +82,8 @@ fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvi
                 name: provider.to_string().to_lowercase(), 
                 prefix: format!("{}_", provider.to_string().to_lowercase()), 
                 basic_info: result.to_owned(),
+                provision_type: DataProvision::OneTime,
+                connectivity: DataProviderConnectivity::SingleConnection,
                 implementation: None
             },
         );
