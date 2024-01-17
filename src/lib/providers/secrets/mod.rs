@@ -55,11 +55,6 @@ impl SecretsProviders {
             providers.insert(provider.get_name().to_string(), provider);
         }
 
-        if providers.len() < 1 {
-            error!("{} is set to TRUE, environment variable {} is found, but the listed providers names are misspelled, or their additional attributes are not provided (host, port, etc.)",
-            ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS)
-        }
-
         Self { providers }
     }
 }
