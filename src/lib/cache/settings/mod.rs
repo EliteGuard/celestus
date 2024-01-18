@@ -4,9 +4,7 @@ use core::result::Result::Ok;
 use std::{collections::HashMap, num::NonZeroUsize};
 
 use crate::{
-    providers::secrets::{
-        SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
-    },
+    providers::secrets::{SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER},
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
 use anyhow::Result;
@@ -38,33 +36,37 @@ pub enum SettingsTypes<'a> {
 
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
-        let mut lru_bools: LruSettingsCache<bool> =
+        let lru_bools: LruSettingsCache<bool> =
             LruCache::new(NonZeroUsize::new(BOOL_SETTINGS.len()).unwrap());
 
-        let mut lru_ints: LruSettingsCache<i32> =
+        let lru_ints: LruSettingsCache<i32> =
             LruCache::new(NonZeroUsize::new(INT32_SETTINGS.len()).unwrap());
 
         let mut lru_strings: LruSettingsCache<String> = LruCache::unbounded();
         lru_strings.push(SETTING_HOST_MODE, get_host_mode().to_string());
 
-        let mut hashmaps = HashMap::<&str, HashMapValueTypes>::new();
+        let hashmaps = HashMap::<&str, HashMapValueTypes>::new();
 
-        match load_settings(
-            &mut lru_bools,
-            &mut lru_ints,
-            &mut lru_strings,
-            &mut hashmaps,
-        ) {
-            Ok(_) => info!("All settings have bee loaded successfully!"),
-            Err(err) => error!("{}", err),
-        }
-
-        Self {
+        let mut created = Self {
             bools: lru_bools,
             ints: lru_ints,
             strings: lru_strings,
             hashmaps: hashmaps,
+        };
+
+        match created.load_env_var_settings() {
+            Ok(_) => (),
+            Err(err) => error!("{}", err),
         }
+
+        match created.load_structured_settings() {
+            Ok(_) => (),
+            Err(err) => error!("{}", err),
+        }
+
+        info!("All settings have bee loaded successfully!");
+
+        return created;
     }
 
     pub fn get_bool(&mut self, key: &str) -> Option<&bool> {
@@ -83,58 +85,58 @@ impl<'a> SettingsCache<'a> {
         self.hashmaps.get(key)
     }
 
-    // pub fn set_bool(&mut self, key: &'a str, val: bool) -> Option<bool> {
-    //     self.bools.put(key, val)
-    // }
-
-    // pub fn set_int(&mut self, key: &'a str, val: i32) -> Option<i32> {
-    //     self.ints.put(key, val)
-    // }
-
-    // pub fn set_string(&mut self, key: &'a str, val: String) -> Option<String> {
-    //     self.strings.put(key, val)
-    // }
-
-    // pub fn set_hashmap(
-    //     &mut self,
-    //     key: &'a str,
-    //     val: HashMapValueTypes,
-    // ) -> Option<HashMapValueTypes> {
-    //     self.hashmaps.insert(key, val)
-    // }
-}
-
-fn load_settings<'a>(
-    bools: &mut LruSettingsCache<'a, bool>,
-    ints: &mut LruSettingsCache<'a, i32>,
-    strings: &mut LruSettingsCache<'a, String>,
-    hashmaps: &mut HashMap<&'a str, HashMapValueTypes>,
-) -> Result<()> {
-    for setting_type in APP_SETTINGS.iter() {
-        for setting in setting_type.iter() {
-            match setting {
-                SettingsTypes::Bool(name, var, value) => {
-                    bools.push(name, get_env_var(var, value.to_owned())?);
+    fn load_env_var_settings(&mut self) -> Result<()> {
+        for setting_type in APP_SETTINGS.iter() {
+            for setting in setting_type.iter() {
+                match setting {
+                    SettingsTypes::Bool(name, var, value) => {
+                        self.bools.push(name, get_env_var(var, value.to_owned())?);
+                    }
+                    SettingsTypes::Int32(name, var, value) => {
+                        self.ints.push(name, get_env_var(var, value.to_owned())?);
+                    }
+                    SettingsTypes::String(name, var, value) => {
+                        self.strings.push(name, get_env_var(var, value.to_owned())?);
+                    }
+                    _ => (),
                 }
-                SettingsTypes::Int32(name, var, value) => {
-                    ints.push(name, get_env_var(var, value.to_owned())?);
-                }
-                SettingsTypes::String(name, var, value) => {
-                    strings.push(name, get_env_var(var, value.to_owned())?);
-                }
-                _ => (),
             }
         }
+    
+        Ok(())
     }
 
-    if let Some(use_providers) = bools.get(SETTING_USE_SECRETS_PROVIDER) {
-        if *use_providers {
-            hashmaps.insert(
-                SETTING_SECRETS_PROVIDERS,
-                HashMapValueTypes::SecretsProviders(SecretsProviders::new()),
-            );
+    fn load_structured_settings(&mut self) -> Result<()> {
+        self.load_hashmaps()?;
+
+        Ok(())
+    }
+
+    fn load_hashmaps(&mut self) -> Result<()> {
+        
+        self.load_data_providers()?;
+
+        Ok(())
+    }
+
+    fn load_data_providers(&mut self) -> Result<()> {
+
+        self.load_secrets_providers()?;
+
+        Ok(())
+    }
+
+    fn load_secrets_providers(&mut self) -> Result<()> {
+
+        if let Some(use_providers) = self.bools.get(SETTING_USE_SECRETS_PROVIDER) {
+            if *use_providers {
+                self.hashmaps.insert(
+                    SETTING_SECRETS_PROVIDERS,
+                    HashMapValueTypes::SecretsProviders(SecretsProviders::new()),
+                );
+            }
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
