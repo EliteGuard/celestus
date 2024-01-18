@@ -1,21 +1,21 @@
+pub mod data;
 pub mod secrets;
 
-use derive_builder::Builder;
 use getset::Getters;
 
-#[derive(Clone, Copy)]
+#[derive(PartialEq)]
 pub enum DataProvision {
     OneTime,
     OnDemand,
 }
 
-#[derive(Clone, Copy)]
+#[derive(PartialEq)]
 pub enum DataProviderConnectivity {
     SingleConnection,
     ConnectionPool,
 }
 
-#[derive(Clone, Builder, Getters)]
+#[derive(Getters)]
 #[getset(get = "pub with_prefix")]
 pub struct DataProvider<BasicInfo, Implementation> {
     name: String,
@@ -25,5 +25,9 @@ pub struct DataProvider<BasicInfo, Implementation> {
     basic_info: BasicInfo,
     provision_type: DataProvision,
     connectivity: DataProviderConnectivity,
-    implementation: Option<Implementation>,
+    implementation: Implementation,
+}
+
+pub trait FetchProviderData {
+    fn fetch_data(&self);
 }

@@ -9,7 +9,7 @@ use crate::{
             SecretsProviderData, SecretsProviderImplementation, SecretsProviders,
             SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
         },
-        DataProvider,
+        DataProvider, DataProvision, FetchProviderData,
     },
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
@@ -48,14 +48,19 @@ impl<'a> Default for SettingsCache<'a> {
 
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
-        let lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
+        let mut lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
 
-        let lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
+        let mut lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
 
         let mut lru_strings: LruSettingsCache<String> = LruCache::unbounded();
         lru_strings.push(SETTING_HOST_MODE, get_host_mode().to_string());
 
         let hashmaps = HashMap::<&str, HashMapValueTypes>::new();
+
+        match load_env_var_settings(&mut lru_bools, &mut lru_ints, &mut lru_strings) {
+            Ok(_) => (),
+            Err(err) => error!("{}", err),
+        }
 
         let mut created = Self {
             bools: lru_bools,
@@ -63,11 +68,6 @@ impl<'a> SettingsCache<'a> {
             strings: lru_strings,
             hashmaps,
         };
-
-        match created.load_env_var_settings() {
-            Ok(_) => (),
-            Err(err) => error!("{}", err),
-        }
 
         match created.load_structured_settings() {
             Ok(_) => (),
@@ -95,6 +95,15 @@ impl<'a> SettingsCache<'a> {
         self.hashmaps.get(key)
     }
 
+    pub fn get_all_secrets_providers(
+        &self,
+    ) -> Vec<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
+        match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
+            HashMapValueTypes::SecretsProviders(sp) => sp.providers.values().collect(),
+            // _ => None,
+        }
+    }
+
     pub fn get_secrets_provider(
         &self,
         key: &'a str,
@@ -103,27 +112,6 @@ impl<'a> SettingsCache<'a> {
             HashMapValueTypes::SecretsProviders(sp) => sp.providers.get(key),
             // _ => None,
         }
-    }
-
-    fn load_env_var_settings(&mut self) -> Result<()> {
-        for setting_type in APP_SETTINGS.iter() {
-            for setting in setting_type.iter() {
-                match setting {
-                    SettingsTypes::Bool(name, var, value) => {
-                        self.bools.push(name, get_env_var(var, value.to_owned())?);
-                    }
-                    SettingsTypes::Int32(name, var, value) => {
-                        self.ints.push(name, get_env_var(var, value.to_owned())?);
-                    }
-                    SettingsTypes::String(name, var, value) => {
-                        self.strings.push(name, get_env_var(var, value.to_owned())?);
-                    }
-                    _ => (),
-                }
-            }
-        }
-
-        Ok(())
     }
 
     fn load_structured_settings(&mut self) -> Result<()> {
@@ -166,8 +154,39 @@ impl<'a> SettingsCache<'a> {
     }
 
     pub fn fetch_from_secrets_providers(&mut self) -> Result<()> {
-        // for secret_provider in self.get_hashmap(SETTING_SECRETS_PROVIDERS)
+        for secrets_provider in self.get_all_secrets_providers().iter_mut() {
+            if *secrets_provider.get_provision_type() == DataProvision::OneTime {
+                match secrets_provider.get_implementation() {
+                    SecretsProviderImplementation::Vault(v) => v.fetch_data(),
+                }
+            }
+        }
 
         Ok(())
     }
+}
+
+fn load_env_var_settings(
+    bools: &mut LruSettingsCache<bool>,
+    ints: &mut LruSettingsCache<i32>,
+    strings: &mut LruSettingsCache<String>,
+) -> Result<()> {
+    for setting_type in APP_SETTINGS.iter() {
+        for setting in setting_type.iter() {
+            match setting {
+                SettingsTypes::Bool(name, var, value) => {
+                    bools.push(name, get_env_var(var, value.to_owned())?);
+                }
+                SettingsTypes::Int32(name, var, value) => {
+                    ints.push(name, get_env_var(var, value.to_owned())?);
+                }
+                SettingsTypes::String(name, var, value) => {
+                    strings.push(name, get_env_var(var, value.to_owned())?);
+                }
+                _ => (),
+            }
+        }
+    }
+
+    Ok(())
 }

@@ -1,8 +1,13 @@
+mod vault;
+
 use std::collections::HashMap;
 
+use log::warn;
 use serde::Deserialize;
 
 use crate::utils::strings::vec_to_uppercase;
+
+use self::vault::Vault;
 
 use super::{DataProvider, DataProviderConnectivity, DataProvision};
 
@@ -33,10 +38,6 @@ struct SecretsProvidersEnvVar {
     secrets_providers: Option<Vec<String>>,
 }
 
-#[derive(Clone, Copy)]
-pub struct Vault;
-
-#[derive(Clone, Copy)]
 pub enum SecretsProviderImplementation {
     Vault(Vault),
 }
@@ -49,26 +50,18 @@ impl Default for SecretsProviders {
 
 impl SecretsProviders {
     pub fn new() -> Self {
-        let secrets_providers = match envy::from_env::<SecretsProvidersEnvVar>() {
-            Ok(config) => config.secrets_providers,
-            Err(_) => {
-                panic!(
-                    "{} is set to TRUE, but environment variable {} is not found",
-                    ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS
-                )
-            }
-        };
+        let mut secrets_providers_names = load_secrets_providers_names();
 
-        let found_secrets_providers = vec_to_uppercase(&mut secrets_providers.unwrap_or(vec![]));
+        let renamed_secrets_providers = vec_to_uppercase(&mut secrets_providers_names);
 
-        let read_providers = load_secrets_providers(&found_secrets_providers);
+        let found_secrets_providers = load_secrets_providers(&renamed_secrets_providers);
 
         let mut providers = HashMap::<
             String,
             DataProvider<SecretsProviderData, SecretsProviderImplementation>,
         >::new();
 
-        for provider in read_providers.into_iter() {
+        for provider in found_secrets_providers.into_iter() {
             providers.insert(provider.get_name().to_string(), provider);
         }
 
@@ -76,11 +69,23 @@ impl SecretsProviders {
     }
 }
 
+fn load_secrets_providers_names() -> Vec<String> {
+    match envy::from_env::<SecretsProvidersEnvVar>() {
+        Ok(config) => config.secrets_providers.unwrap(),
+        Err(_) => {
+            panic!(
+                "{} is set to TRUE, but environment variable {} is not found",
+                ENV_USE_SECRETS_PROVIDER, ENV_SECRETS_PROVIDERS
+            )
+        }
+    }
+}
+
 fn load_secrets_providers(
     providers_names: &[String],
 ) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
     let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> =
-        [].to_vec();
+        Vec::new();
 
     for provider in providers_names.iter() {
         let result =
@@ -89,15 +94,38 @@ fn load_secrets_providers(
                 Err(error) => panic!("Encountered error during loading of Secrets Provider, the name \"{}\": {:#?} might be misspelled or related variables are missing", provider, error),
             };
 
-        read.push(DataProvider {
-            name: provider.to_string().to_lowercase(),
-            prefix: format!("{}_", provider.to_string().to_lowercase()),
-            basic_info: result.to_owned(),
-            provision_type: DataProvision::OneTime,
-            connectivity: DataProviderConnectivity::SingleConnection,
-            implementation: None,
-        });
+        let provider_implementation =
+            create_secrets_provider_implementation(provider.to_lowercase().as_str(), &result);
+
+        if provider_implementation.is_some() {
+            read.push(DataProvider {
+                name: provider.to_string().to_lowercase(),
+                prefix: format!("{}_", provider.to_string().to_lowercase()),
+                basic_info: result.to_owned(),
+                provision_type: DataProvision::OneTime,
+                connectivity: DataProviderConnectivity::SingleConnection,
+                implementation: provider_implementation.unwrap(),
+            });
+        } else {
+            warn!("{} is not currently supported", provider)
+        }
     }
 
     read
+}
+
+fn create_secrets_provider_implementation(
+    provider_name: &str,
+    provider_info: &SecretsProviderData,
+) -> Option<SecretsProviderImplementation> {
+    if provider_name.contains("vault") {
+        Some(SecretsProviderImplementation::Vault(Vault::new(
+            provider_info,
+        )))
+    } else {
+        None
+    }
+    // for provider in secrets_providers.iter_mut() {
+    //     if provider.
+    // }
 }
