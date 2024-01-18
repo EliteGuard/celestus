@@ -1,10 +1,10 @@
 pub mod consts;
 
 use core::result::Result::Ok;
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::{collections::HashMap};
 
 use crate::{
-    providers::secrets::{SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER},
+    providers::{secrets::{SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER, SecretsProviderData, SecretsProviderImplementation}, DataProvider},
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
 use anyhow::Result;
@@ -12,7 +12,7 @@ use log::error;
 use lru::LruCache;
 use tracing::info;
 
-use self::consts::{APP_SETTINGS, BOOL_SETTINGS, INT32_SETTINGS};
+use self::consts::{APP_SETTINGS};
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
@@ -36,11 +36,9 @@ pub enum SettingsTypes<'a> {
 
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
-        let lru_bools: LruSettingsCache<bool> =
-            LruCache::new(NonZeroUsize::new(BOOL_SETTINGS.len()).unwrap());
+        let lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
 
-        let lru_ints: LruSettingsCache<i32> =
-            LruCache::new(NonZeroUsize::new(INT32_SETTINGS.len()).unwrap());
+        let lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
 
         let mut lru_strings: LruSettingsCache<String> = LruCache::unbounded();
         lru_strings.push(SETTING_HOST_MODE, get_host_mode().to_string());
@@ -81,8 +79,17 @@ impl<'a> SettingsCache<'a> {
         self.strings.get(key).map(|x| x.as_str())
     }
 
-    pub fn get_hashmap(&mut self, key: &'a str) -> Option<&HashMapValueTypes> {
+    pub fn get_hashmap(&self, key: &'a str) -> Option<&HashMapValueTypes> {
         self.hashmaps.get(key)
+    }
+
+    pub fn get_secrets_provider(&self, key: &'a str) -> Option<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
+        
+        match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
+            HashMapValueTypes::SecretsProviders(sp) => sp.providers.get(key),
+            _ => None
+        }
+
     }
 
     fn load_env_var_settings(&mut self) -> Result<()> {
@@ -116,6 +123,8 @@ impl<'a> SettingsCache<'a> {
         
         self.load_data_providers()?;
 
+        self.fetch_from_data_providers()?;
+
         Ok(())
     }
 
@@ -136,6 +145,20 @@ impl<'a> SettingsCache<'a> {
                 );
             }
         }
+
+        Ok(())
+    }
+
+    pub fn fetch_from_data_providers(&mut self) -> Result<()> {
+
+        self.fetch_from_secrets_providers()?;
+
+        Ok(())
+    }
+
+    pub fn fetch_from_secrets_providers(&mut self) -> Result<()> {
+            
+        // for secret_provider in self.get_hashmap(SETTING_SECRETS_PROVIDERS)
 
         Ok(())
     }
