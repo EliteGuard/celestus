@@ -6,13 +6,13 @@ use getset::Getters;
 #[derive(Clone, Copy)]
 pub enum DataProvision {
     OneTime,
-    OnDemand
+    OnDemand,
 }
 
 #[derive(Clone, Copy)]
 pub enum DataProviderConnectivity {
     SingleConnection,
-    ConnectionPool
+    ConnectionPool,
 }
 
 #[derive(Clone, Builder, Getters)]
@@ -25,5 +25,5 @@ pub struct DataProvider<BasicInfo, Implementation> {
     basic_info: BasicInfo,
     provision_type: DataProvision,
     connectivity: DataProviderConnectivity,
-    implementation: Option<Implementation>
+    implementation: Option<Implementation>,
 }

@@ -55,10 +55,10 @@ pub fn is_docker_host() -> bool {
         let process = proc.unwrap();
         let stats = process.stat().unwrap();
         info!("Running locally. {} {}", stats.pid, stats.comm);
-        return false;
+        false
     } else {
         info!("Running in a container.");
-        return true;
+        true
     }
 }
 

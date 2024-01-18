@@ -10,5 +10,5 @@ use vaultrs::client::{Client, VaultClient, VaultClientSettingsBuilder};
 // ).unwrap();
 
 pub struct Vault {
-    client: Optoin<VaultClient>
+    client: Optoin<VaultClient>,
 }

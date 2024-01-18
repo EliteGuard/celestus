@@ -12,3 +12,9 @@ impl Cache<'_> {
         Self { settings }
     }
 }
+
+impl Default for Cache<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -23,7 +23,8 @@ pub struct SecretsProviderData {
 }
 
 pub struct SecretsProviders {
-    pub providers: HashMap<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>,
+    pub providers:
+        HashMap<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -36,8 +37,14 @@ struct SecretsProvidersEnvVar {
 pub struct Vault;
 
 #[derive(Clone, Copy)]
-pub enum SecretsProviderImplementation{
-    Vault(Vault)
+pub enum SecretsProviderImplementation {
+    Vault(Vault),
+}
+
+impl Default for SecretsProviders {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecretsProviders {
@@ -56,7 +63,10 @@ impl SecretsProviders {
 
         let read_providers = load_secrets_providers(&found_secrets_providers);
 
-        let mut providers = HashMap::<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>::new();
+        let mut providers = HashMap::<
+            String,
+            DataProvider<SecretsProviderData, SecretsProviderImplementation>,
+        >::new();
 
         for provider in read_providers.into_iter() {
             providers.insert(provider.get_name().to_string(), provider);
@@ -66,8 +76,11 @@ impl SecretsProviders {
     }
 }
 
-fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
-    let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> = [].to_vec();
+fn load_secrets_providers(
+    providers_names: &[String],
+) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
+    let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> =
+        [].to_vec();
 
     for provider in providers_names.iter() {
         let result =
@@ -76,18 +89,15 @@ fn load_secrets_providers<'a>(providers_names: &'a Vec<String>) -> Vec<DataProvi
                 Err(error) => panic!("Encountered error during loading of Secrets Provider, the name \"{}\": {:#?} might be misspelled or related variables are missing", provider, error),
             };
 
-        read.push(
-            DataProvider
-            { 
-                name: provider.to_string().to_lowercase(), 
-                prefix: format!("{}_", provider.to_string().to_lowercase()), 
-                basic_info: result.to_owned(),
-                provision_type: DataProvision::OneTime,
-                connectivity: DataProviderConnectivity::SingleConnection,
-                implementation: None
-            },
-        );
+        read.push(DataProvider {
+            name: provider.to_string().to_lowercase(),
+            prefix: format!("{}_", provider.to_string().to_lowercase()),
+            basic_info: result.to_owned(),
+            provision_type: DataProvision::OneTime,
+            connectivity: DataProviderConnectivity::SingleConnection,
+            implementation: None,
+        });
     }
 
-    return read;
+    read
 }

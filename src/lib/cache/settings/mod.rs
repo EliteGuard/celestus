@@ -1,10 +1,16 @@
 pub mod consts;
 
 use core::result::Result::Ok;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
-    providers::{secrets::{SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER, SecretsProviderData, SecretsProviderImplementation}, DataProvider},
+    providers::{
+        secrets::{
+            SecretsProviderData, SecretsProviderImplementation, SecretsProviders,
+            SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
+        },
+        DataProvider,
+    },
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
 use anyhow::Result;
@@ -12,7 +18,7 @@ use log::error;
 use lru::LruCache;
 use tracing::info;
 
-use self::consts::{APP_SETTINGS};
+use self::consts::APP_SETTINGS;
 
 pub type LruSettingsCache<'a, Value> = LruCache<&'a str, Value>;
 
@@ -34,6 +40,12 @@ pub enum SettingsTypes<'a> {
     Hashmap(&'a str, HashMapValueTypes),
 }
 
+impl<'a> Default for SettingsCache<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
         let lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
@@ -49,7 +61,7 @@ impl<'a> SettingsCache<'a> {
             bools: lru_bools,
             ints: lru_ints,
             strings: lru_strings,
-            hashmaps: hashmaps,
+            hashmaps,
         };
 
         match created.load_env_var_settings() {
@@ -64,7 +76,7 @@ impl<'a> SettingsCache<'a> {
 
         info!("All settings have bee loaded successfully!");
 
-        return created;
+        created
     }
 
     pub fn get_bool(&mut self, key: &str) -> Option<&bool> {
@@ -83,13 +95,14 @@ impl<'a> SettingsCache<'a> {
         self.hashmaps.get(key)
     }
 
-    pub fn get_secrets_provider(&self, key: &'a str) -> Option<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
-        
+    pub fn get_secrets_provider(
+        &self,
+        key: &'a str,
+    ) -> Option<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
         match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
             HashMapValueTypes::SecretsProviders(sp) => sp.providers.get(key),
-            _ => None
+            // _ => None,
         }
-
     }
 
     fn load_env_var_settings(&mut self) -> Result<()> {
@@ -109,7 +122,7 @@ impl<'a> SettingsCache<'a> {
                 }
             }
         }
-    
+
         Ok(())
     }
 
@@ -120,7 +133,6 @@ impl<'a> SettingsCache<'a> {
     }
 
     fn load_hashmaps(&mut self) -> Result<()> {
-        
         self.load_data_providers()?;
 
         self.fetch_from_data_providers()?;
@@ -129,14 +141,12 @@ impl<'a> SettingsCache<'a> {
     }
 
     fn load_data_providers(&mut self) -> Result<()> {
-
         self.load_secrets_providers()?;
 
         Ok(())
     }
 
     fn load_secrets_providers(&mut self) -> Result<()> {
-
         if let Some(use_providers) = self.bools.get(SETTING_USE_SECRETS_PROVIDER) {
             if *use_providers {
                 self.hashmaps.insert(
@@ -150,14 +160,12 @@ impl<'a> SettingsCache<'a> {
     }
 
     pub fn fetch_from_data_providers(&mut self) -> Result<()> {
-
         self.fetch_from_secrets_providers()?;
 
         Ok(())
     }
 
     pub fn fetch_from_secrets_providers(&mut self) -> Result<()> {
-            
         // for secret_provider in self.get_hashmap(SETTING_SECRETS_PROVIDERS)
 
         Ok(())

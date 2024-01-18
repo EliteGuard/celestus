@@ -9,16 +9,16 @@ pub type AppSettings = &'static [&'static [&'static SettingsTypes<'static>]];
 
 pub const APP_SETTINGS: AppSettings = &[BOOL_SETTINGS, INT32_SETTINGS];
 
-pub const BOOL_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::Bool(
+pub const BOOL_SETTINGS: &[&SettingsTypes] = &[&SettingsTypes::Bool(
     SETTING_USE_SECRETS_PROVIDER,
     ENV_USE_SECRETS_PROVIDER,
     Some(false),
 )];
 
-pub const INT32_SETTINGS: &'static [&'static SettingsTypes] =
+pub const INT32_SETTINGS: &[&SettingsTypes] =
     &[&SettingsTypes::Int32("some_int", "some_int", Some(123))];
 
-pub const STRING_SETTINGS: &'static [&'static SettingsTypes] = &[&SettingsTypes::String(
+pub const STRING_SETTINGS: &[&SettingsTypes] = &[&SettingsTypes::String(
     SETTING_HOST_MODE,
     ENV_HOST_ENVIRONMENT,
     None,
