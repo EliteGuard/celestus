@@ -6,11 +6,12 @@ use celestus::{
 };
 use log::info;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     env_logger::init();
 
     init_environment();
-    let mut cache = Cache::new();
+    let mut cache = Cache::new().await;
 
     info!(
         "{:?}",

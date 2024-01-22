@@ -14,9 +14,8 @@ use crate::{
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
 use anyhow::Result;
-use log::error;
+use log::{error, info};
 use lru::LruCache;
-use tracing::info;
 
 use self::consts::APP_SETTINGS;
 
@@ -40,14 +39,8 @@ pub enum SettingsTypes<'a> {
     Hashmap(&'a str, HashMapValueTypes),
 }
 
-impl<'a> Default for SettingsCache<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a> SettingsCache<'a> {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let mut lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
 
         let mut lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
@@ -69,7 +62,7 @@ impl<'a> SettingsCache<'a> {
             hashmaps,
         };
 
-        match created.load_structured_settings() {
+        match created.load_structured_settings().await {
             Ok(_) => (),
             Err(err) => error!("{}", err),
         }
@@ -114,32 +107,32 @@ impl<'a> SettingsCache<'a> {
         }
     }
 
-    fn load_structured_settings(&mut self) -> Result<()> {
-        self.load_hashmaps()?;
+    async fn load_structured_settings(&mut self) -> Result<()> {
+        self.load_hashmaps().await?;
 
         Ok(())
     }
 
-    fn load_hashmaps(&mut self) -> Result<()> {
-        self.load_data_providers()?;
+    async fn load_hashmaps(&mut self) -> Result<()> {
+        self.load_data_providers().await?;
 
         self.fetch_from_data_providers()?;
 
         Ok(())
     }
 
-    fn load_data_providers(&mut self) -> Result<()> {
-        self.load_secrets_providers()?;
+    async fn load_data_providers(&mut self) -> Result<()> {
+        self.load_secrets_providers().await?;
 
         Ok(())
     }
 
-    fn load_secrets_providers(&mut self) -> Result<()> {
+    async fn load_secrets_providers(&mut self) -> Result<()> {
         if let Some(use_providers) = self.bools.get(SETTING_USE_SECRETS_PROVIDER) {
             if *use_providers {
                 self.hashmaps.insert(
                     SETTING_SECRETS_PROVIDERS,
-                    HashMapValueTypes::SecretsProviders(SecretsProviders::new()),
+                    HashMapValueTypes::SecretsProviders(SecretsProviders::new().await),
                 );
             }
         }

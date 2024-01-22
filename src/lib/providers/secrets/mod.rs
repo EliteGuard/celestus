@@ -42,19 +42,13 @@ pub enum SecretsProviderImplementation {
     Vault(Vault),
 }
 
-impl Default for SecretsProviders {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SecretsProviders {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let mut secrets_providers_names = load_secrets_providers_names();
 
         let renamed_secrets_providers = vec_to_uppercase(&mut secrets_providers_names);
 
-        let found_secrets_providers = load_secrets_providers(&renamed_secrets_providers);
+        let found_secrets_providers = load_secrets_providers(&renamed_secrets_providers).await;
 
         let mut providers = HashMap::<
             String,
@@ -81,7 +75,7 @@ fn load_secrets_providers_names() -> Vec<String> {
     }
 }
 
-fn load_secrets_providers(
+async fn load_secrets_providers(
     providers_names: &[String],
 ) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
     let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> =
@@ -95,7 +89,7 @@ fn load_secrets_providers(
             };
 
         let provider_implementation =
-            create_secrets_provider_implementation(provider.to_lowercase().as_str(), &result);
+            create_secrets_provider_implementation(provider.to_lowercase().as_str(), &result).await;
 
         if provider_implementation.is_some() {
             read.push(DataProvider {
@@ -114,18 +108,15 @@ fn load_secrets_providers(
     read
 }
 
-fn create_secrets_provider_implementation(
+async fn create_secrets_provider_implementation(
     provider_name: &str,
     provider_info: &SecretsProviderData,
 ) -> Option<SecretsProviderImplementation> {
     if provider_name.contains("vault") {
-        Some(SecretsProviderImplementation::Vault(Vault::new(
-            provider_info,
-        )))
+        Some(SecretsProviderImplementation::Vault(
+            Vault::new(provider_info).await,
+        ))
     } else {
         None
     }
-    // for provider in secrets_providers.iter_mut() {
-    //     if provider.
-    // }
 }

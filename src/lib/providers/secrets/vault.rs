@@ -1,6 +1,11 @@
 use log::info;
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+use vaultrs::kv2;
+use vaultrs::sys::wrapping::unwrap;
+use vaultrs_login::engines::approle::AppRoleLogin;
+use vaultrs_login::LoginClient;
 
+use crate::providers::data::business::postgres::PostgresData;
 use crate::providers::FetchProviderData;
 
 use super::SecretsProviderData;
@@ -39,22 +44,27 @@ pub struct Vault {
     client: VaultClient,
 }
 
-// impl Default for Vault {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
-
 impl Vault {
-    pub fn new(provider_info: &SecretsProviderData) -> Self {
-        let client = VaultClient::new(
+    pub async fn new(provider_info: &SecretsProviderData) -> Self {
+        let mut client = VaultClient::new(
             VaultClientSettingsBuilder::default()
                 .address(provider_info.url.clone())
-                .token("TOKEN")
                 .build()
                 .unwrap(),
         )
         .unwrap();
+
+        // let unwrap_resp = unwrap::<String>(&client, Some(&provider_info.login_pass)).await;
+
+        let login = AppRoleLogin {
+            role_id: provider_info.login_id.clone(),
+            secret_id: provider_info.login_pass.clone(),
+        };
+
+        let _ = client.login("approle", &login).await;
+
+        let asd = kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
+        info!("{:#?}", asd);
 
         Self { client }
     }
@@ -62,6 +72,6 @@ impl Vault {
 
 impl FetchProviderData for Vault {
     fn fetch_data(&self) {
-        info!("Fetching.... {:#?}", self.client.settings)
+        // info!("Fetching.... {:#?}", self.client.settings)
     }
 }
