@@ -19,20 +19,20 @@ capabilities = [ "read" ]
 dev/celestus/database/pg
 
 {
-"PG_DATABASE_NAME": "celestus",
-"PG_HOST": "localhost",
-"PG_PASSWORD": "123456",
-"PG_PORT": "5433",
-"PG_URL": "postgres://dev:123456@localhost:5433/celestus",
-"PG_URL_PREFIX": "postgres",
-"PG_USER": "dev"
+"pg_database_name": "celestus",
+"pg_host": "localhost",
+"pg_password": "123456",
+"pg_port": 5433,
+"pg_url": "postgres://dev:123456@localhost:5433/celestus",
+"pg_url_prefix": "postgres",
+"pg_user": "dev"
 }
 
 ## Add approle with policy
 
 Be sure to set "token_policies" to the name of the above created policy !!!
 
-vault write auth/approle/role/celestus token_num_uses=0 token_ttl=720h token_max_ttl=720h secret_id_ttl="0" secret_id_num_uses=0 token_policies="celestus"
+vault write auth/approle/role/celestus token_num_uses=0 token_ttl=720h token_max_ttl=720h secret_id_ttl="0" secret_id_num_uses=0 num_uses=0 token_policies="celestus"
 
 ## Get role/secret id
 

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::{
     providers::{
         secrets::{
-            SecretsProviderData, SecretsProviderImplementation, SecretsProviders,
+            SecretsProviderImplementation, SecretsProviderInfo, SecretsProviders,
             SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
         },
         DataProvider, DataProvision, FetchProviderData,
@@ -90,19 +90,23 @@ impl<'a> SettingsCache<'a> {
 
     pub fn get_all_secrets_providers(
         &self,
-    ) -> Vec<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
-        match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
-            HashMapValueTypes::SecretsProviders(sp) => sp.providers.values().collect(),
-            // _ => None,
+    ) -> Vec<&DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
+        if let Some(available) = self.get_hashmap(SETTING_SECRETS_PROVIDERS) {
+            match available {
+                HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().values().collect(),
+                // _ => None,
+            }
+        } else {
+            vec![]
         }
     }
 
     pub fn get_secrets_provider(
         &self,
         key: &'a str,
-    ) -> Option<&DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
+    ) -> Option<&DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
         match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
-            HashMapValueTypes::SecretsProviders(sp) => sp.providers.get(key),
+            HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().get(key),
             // _ => None,
         }
     }
@@ -129,7 +133,7 @@ impl<'a> SettingsCache<'a> {
 
     async fn load_secrets_providers(&mut self) -> Result<()> {
         if let Some(use_providers) = self.bools.get(SETTING_USE_SECRETS_PROVIDER) {
-            if *use_providers {
+            if *use_providers && self.get_all_secrets_providers().is_empty() {
                 self.hashmaps.insert(
                     SETTING_SECRETS_PROVIDERS,
                     HashMapValueTypes::SecretsProviders(SecretsProviders::new().await),

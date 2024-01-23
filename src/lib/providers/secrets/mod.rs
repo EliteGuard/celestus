@@ -2,12 +2,11 @@ mod vault;
 
 use std::collections::HashMap;
 
+use getset::Getters;
 use log::warn;
 use serde::Deserialize;
 
-use crate::utils::strings::vec_to_uppercase;
-
-use self::vault::Vault;
+use self::vault::{Vault, VaultEnvData, VaultSecretsEngine, VAULT_SECRETS_PROVIDER_NAME};
 
 use super::{DataProvider, DataProviderConnectivity, DataProvision};
 
@@ -19,17 +18,16 @@ pub const ENV_SECRETS_PROVIDERS: &str = "SECRETS_PROVIDERS";
 
 #[derive(Clone, Deserialize)]
 #[allow(dead_code)]
-pub struct SecretsProviderData {
+pub struct SecretsProviderInfo {
     host: String,
     port: i32,
     url: String,
-    login_id: String,
-    login_pass: String,
 }
 
+#[derive(Getters)]
+#[getset(get = "pub with_prefix")]
 pub struct SecretsProviders {
-    pub providers:
-        HashMap<String, DataProvider<SecretsProviderData, SecretsProviderImplementation>>,
+    providers: HashMap<String, DataProvider<SecretsProviderInfo, SecretsProviderImplementation>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -44,15 +42,13 @@ pub enum SecretsProviderImplementation {
 
 impl SecretsProviders {
     pub async fn new() -> Self {
-        let mut secrets_providers_names = load_secrets_providers_names();
+        let secrets_providers_names = load_secrets_providers_names();
 
-        let renamed_secrets_providers = vec_to_uppercase(&mut secrets_providers_names);
-
-        let found_secrets_providers = load_secrets_providers(&renamed_secrets_providers).await;
+        let found_secrets_providers = load_secrets_providers(&secrets_providers_names).await;
 
         let mut providers = HashMap::<
             String,
-            DataProvider<SecretsProviderData, SecretsProviderImplementation>,
+            DataProvider<SecretsProviderInfo, SecretsProviderImplementation>,
         >::new();
 
         for provider in found_secrets_providers.into_iter() {
@@ -77,46 +73,54 @@ fn load_secrets_providers_names() -> Vec<String> {
 
 async fn load_secrets_providers(
     providers_names: &[String],
-) -> Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> {
-    let mut read: Vec<DataProvider<SecretsProviderData, SecretsProviderImplementation>> =
+) -> Vec<DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
+    let mut read: Vec<DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> =
         Vec::new();
 
-    for provider in providers_names.iter() {
-        let result =
-            match envy::prefixed(format!("{}_", provider)).from_env::<SecretsProviderData>() {
-                Ok(sec_prov) => sec_prov,
-                Err(error) => panic!("Encountered error during loading of Secrets Provider, the name \"{}\": {:#?} might be misspelled or related variables are missing", provider, error),
-            };
+    for provider_name in providers_names.iter() {
+        let uppercase_name = provider_name.to_uppercase();
 
-        let provider_implementation =
-            create_secrets_provider_implementation(provider.to_lowercase().as_str(), &result).await;
-
-        if provider_implementation.is_some() {
-            read.push(DataProvider {
-                name: provider.to_string().to_lowercase(),
-                prefix: format!("{}_", provider.to_string().to_lowercase()),
-                basic_info: result.to_owned(),
-                provision_type: DataProvision::OneTime,
-                connectivity: DataProviderConnectivity::SingleConnection,
-                implementation: provider_implementation.unwrap(),
-            });
+        if uppercase_name.contains(VAULT_SECRETS_PROVIDER_NAME) {
+            read.extend(load_vault_secrets_provider(uppercase_name).await);
         } else {
-            warn!("{} is not currently supported", provider)
+            warn!(
+                "{} is not referencing any currently supported Secrets Providers.\n
+            Name must contain currently supported Secrets Providers \n
+            Currently supported: Vault",
+                provider_name
+            )
         }
     }
 
     read
 }
 
-async fn create_secrets_provider_implementation(
-    provider_name: &str,
-    provider_info: &SecretsProviderData,
-) -> Option<SecretsProviderImplementation> {
-    if provider_name.contains("vault") {
-        Some(SecretsProviderImplementation::Vault(
-            Vault::new(provider_info).await,
-        ))
-    } else {
-        None
-    }
+async fn load_vault_secrets_provider(
+    provider_name: String,
+) -> Vec<DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
+    let mut vault_providers: Vec<DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> =
+        Vec::new();
+
+    let parsed_env_data =
+            match envy::prefixed(format!("{}_", provider_name)).from_env::<VaultEnvData>() {
+                Ok(sec_prov) => sec_prov,
+                Err(error) => panic!("Encountered error during loading of Secrets Provider, the name \"{}\": {:#?} might be misspelled or related variables are missing", provider_name, error),
+            };
+
+    vault_providers.push(DataProvider {
+        name: provider_name.to_string().to_lowercase(),
+        prefix: format!("{}_", provider_name.to_string().to_lowercase()),
+        basic_info: SecretsProviderInfo {
+            host: parsed_env_data.get_host().to_string(),
+            port: *parsed_env_data.get_port(),
+            url: parsed_env_data.get_url().to_string(),
+        },
+        provision_type: DataProvision::OneTime,
+        connectivity: DataProviderConnectivity::SingleConnection,
+        implementation: SecretsProviderImplementation::Vault(
+            Vault::new(parsed_env_data, VaultSecretsEngine::KV2).await,
+        ),
+    });
+
+    vault_providers
 }
