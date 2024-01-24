@@ -8,7 +8,7 @@ pub const SETTING_HOST_MODE: &str = "host_mode";
 pub const SETTING_HOST_ENVIRONMENT: &str = "host_environment";
 pub const ENV_HOST_ENVIRONMENT: &str = "HOST_ENVIRONMENT";
 
-#[derive(Clone, Copy, PartialEq, strum_macros::EnumString, strum_macros::Display)]
+#[derive(PartialEq, strum_macros::EnumString, strum_macros::Display)]
 pub enum Environment {
     Production,
     Development,

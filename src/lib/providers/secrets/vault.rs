@@ -8,21 +8,40 @@ use vaultrs_login::engines::approle::AppRoleLogin;
 use vaultrs_login::LoginClient;
 
 use crate::providers::data::business::postgres::PostgresData;
-use crate::providers::FetchProviderData;
+use crate::providers::{DataProviderConnectivity, FetchProviderData};
 use crate::utils::environment::is_dev_mode;
+use crate::utils::web::URLInfo;
 
 pub const VAULT_SECRETS_PROVIDER_NAME: &str = "VAULT";
 
 #[derive(Deserialize, Getters)]
 #[getset(get = "pub with_prefix")]
 pub struct VaultEnvData {
+    #[getset(skip)]
     host: String,
+    #[getset(skip)]
     port: i32,
+    #[getset(skip)]
     url: String,
     engine: String,
     token: String,
     login_id: String,
     login_pass: String,
+    single_use: Option<String>,
+}
+
+impl URLInfo for VaultEnvData {
+    fn get_url(&self) -> &str {
+        self.url.as_str()
+    }
+
+    fn get_host(&self) -> &str {
+        self.host.as_str()
+    }
+
+    fn get_port(&self) -> i32 {
+        self.port
+    }
 }
 
 #[derive(Deserialize)]
@@ -41,6 +60,7 @@ pub enum VaultSecretsEngine {
 #[getset(get = "pub with_prefix")]
 pub struct Vault {
     client: VaultClient,
+    connectivity: DataProviderConnectivity,
     secrets_engine: VaultSecretsEngine,
 }
 
@@ -76,6 +96,7 @@ impl Vault {
         Self {
             client,
             secrets_engine,
+            connectivity: DataProviderConnectivity::SingleConnection,
         }
     }
 }

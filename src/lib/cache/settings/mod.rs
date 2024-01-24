@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use crate::{
     providers::{
         secrets::{
-            SecretsProviderImplementation, SecretsProviderInfo, SecretsProviders,
+            SecretsProvider, SecretsProviderImplementation, SecretsProviders,
             SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
         },
-        DataProvider, DataProvision, FetchProviderData,
+        DataProvision, FetchProviderData,
     },
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
@@ -88,23 +88,18 @@ impl<'a> SettingsCache<'a> {
         self.hashmaps.get(key)
     }
 
-    pub fn get_all_secrets_providers(
-        &self,
-    ) -> Vec<&DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
+    pub fn get_all_secrets_providers(&self) -> Vec<&SecretsProvider> {
         if let Some(available) = self.get_hashmap(SETTING_SECRETS_PROVIDERS) {
             match available {
                 HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().values().collect(),
                 // _ => None,
             }
         } else {
-            vec![]
+            Vec::new()
         }
     }
 
-    pub fn get_secrets_provider(
-        &self,
-        key: &'a str,
-    ) -> Option<&DataProvider<SecretsProviderInfo, SecretsProviderImplementation>> {
+    pub fn get_secrets_provider(&self, key: &'a str) -> Option<&SecretsProvider> {
         match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
             HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().get(key),
             // _ => None,
@@ -151,9 +146,9 @@ impl<'a> SettingsCache<'a> {
     }
 
     pub fn fetch_from_secrets_providers(&mut self) -> Result<()> {
-        for secrets_provider in self.get_all_secrets_providers().iter_mut() {
+        for secrets_provider in self.get_all_secrets_providers().into_iter() {
             if *secrets_provider.get_provision_type() == DataProvision::OneTime {
-                match secrets_provider.get_implementation() {
+                match secrets_provider.get_implementation().unwrap() {
                     SecretsProviderImplementation::Vault(v) => v.fetch_data(),
                 }
             }

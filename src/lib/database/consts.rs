@@ -15,8 +15,7 @@ use crate::utils::environment::Environment;
 use super::helpers::seeds::{SeedModels, SeedProps};
 
 impl Consts {
-    pub fn new(environment: &Environment) -> Self {
-        let environment = *environment;
+    pub fn new(environment: Environment) -> Self {
         let system_config_seed_file_path = match environment {
             Environment::Production => C_SYSTEM_CONFIG_SEED_FILE_PATH.to_string(),
             Environment::Development => C_SYSTEM_CONFIG_SEED_FILE_PATH_DEV.to_string(),

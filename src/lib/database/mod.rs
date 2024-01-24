@@ -27,7 +27,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(environment: &Environment) -> Self {
+    pub fn new(environment: Environment) -> Self {
         let consts = Consts::new(environment);
 
         Self {
