@@ -40,7 +40,7 @@ pub enum SettingsTypes<'a> {
 }
 
 impl<'a> SettingsCache<'a> {
-    pub async fn new() -> Self {
+    pub fn new() -> Self {
         let mut lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
 
         let mut lru_ints: LruSettingsCache<i32> = LruCache::unbounded();
@@ -62,7 +62,7 @@ impl<'a> SettingsCache<'a> {
             hashmaps,
         };
 
-        match created.load_structured_settings().await {
+        match created.load_structured_settings() {
             Ok(_) => (),
             Err(err) => error!("{}", err),
         }
@@ -106,32 +106,32 @@ impl<'a> SettingsCache<'a> {
         }
     }
 
-    async fn load_structured_settings(&mut self) -> Result<()> {
-        self.load_hashmaps().await?;
+    fn load_structured_settings(&mut self) -> Result<()> {
+        self.load_hashmaps()?;
 
         Ok(())
     }
 
-    async fn load_hashmaps(&mut self) -> Result<()> {
-        self.load_data_providers().await?;
+    fn load_hashmaps(&mut self) -> Result<()> {
+        self.load_data_providers()?;
 
         self.fetch_from_data_providers()?;
 
         Ok(())
     }
 
-    async fn load_data_providers(&mut self) -> Result<()> {
-        self.load_secrets_providers().await?;
+    fn load_data_providers(&mut self) -> Result<()> {
+        self.load_secrets_providers()?;
 
         Ok(())
     }
 
-    async fn load_secrets_providers(&mut self) -> Result<()> {
+    fn load_secrets_providers(&mut self) -> Result<()> {
         if let Some(use_providers) = self.bools.get(SETTING_USE_SECRETS_PROVIDER) {
             if *use_providers && self.get_all_secrets_providers().is_empty() {
                 self.hashmaps.insert(
                     SETTING_SECRETS_PROVIDERS,
-                    HashMapValueTypes::SecretsProviders(SecretsProviders::new().await),
+                    HashMapValueTypes::SecretsProviders(SecretsProviders::new()),
                 );
             }
         }

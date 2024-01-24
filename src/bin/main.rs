@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     init_environment();
-    let mut cache = Cache::new().await;
+    let mut cache = Cache::new();
 
     info!(
         "{:?}",

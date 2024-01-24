@@ -7,8 +7,8 @@ pub struct Cache<'a> {
 }
 
 impl Cache<'_> {
-    pub async fn new() -> Self {
-        let settings: SettingsCache = SettingsCache::new().await;
+    pub fn new() -> Self {
+        let settings: SettingsCache = SettingsCache::new();
         Self { settings }
     }
 }

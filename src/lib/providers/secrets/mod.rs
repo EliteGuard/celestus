@@ -37,10 +37,10 @@ pub enum SecretsProviderImplementation {
 }
 
 impl SecretsProviders {
-    pub async fn new() -> Self {
+    pub fn new() -> Self {
         let secrets_providers_names = load_secrets_providers_names();
 
-        let found_secrets_providers = load_secrets_providers(&secrets_providers_names).await;
+        let found_secrets_providers = load_secrets_providers(&secrets_providers_names);
 
         let mut providers = HashMap::<String, SecretsProvider>::new();
 
@@ -64,14 +64,14 @@ fn load_secrets_providers_names() -> Vec<String> {
     }
 }
 
-async fn load_secrets_providers(providers_names: &[String]) -> Vec<SecretsProvider> {
+fn load_secrets_providers(providers_names: &[String]) -> Vec<SecretsProvider> {
     let mut read: Vec<SecretsProvider> = Vec::new();
 
     for provider_name in providers_names.iter() {
         let uppercase_name = provider_name.to_uppercase();
 
         if uppercase_name.contains(VAULT_SECRETS_PROVIDER_NAME) {
-            read.extend(load_vault_secrets_provider(uppercase_name).await);
+            read.extend(load_vault_secrets_provider(uppercase_name));
         } else {
             warn!(
                 "{} is not referencing any currently supported Secrets Providers.\n
@@ -85,7 +85,7 @@ async fn load_secrets_providers(providers_names: &[String]) -> Vec<SecretsProvid
     read
 }
 
-async fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvider> {
+fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvider> {
     let mut vault_providers: Vec<SecretsProvider> = Vec::new();
 
     let parsed_env_data: VaultEnvData = load_provider_from_env::<VaultEnvData>(&provider_name);
@@ -98,9 +98,10 @@ async fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvid
         url: parsed_env_data.get_url().to_string(),
     };
 
-    let implementation = Some(SecretsProviderImplementation::Vault(
-        Vault::new(parsed_env_data, VaultSecretsEngine::KV2).await,
-    ));
+    let implementation = Some(SecretsProviderImplementation::Vault(Vault::new(
+        parsed_env_data,
+        VaultSecretsEngine::KV2,
+    )));
 
     vault_providers.push(DataProvider {
         name: provider_name.to_string().to_lowercase(),

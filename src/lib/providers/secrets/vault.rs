@@ -1,3 +1,4 @@
+use anyhow::Error;
 use getset::Getters;
 use log::info;
 use serde_derive::Deserialize;
@@ -65,7 +66,7 @@ pub struct Vault {
 }
 
 impl Vault {
-    pub async fn new(provider_info: VaultEnvData, secrets_engine: VaultSecretsEngine) -> Self {
+    pub fn new(provider_info: VaultEnvData, secrets_engine: VaultSecretsEngine) -> Self {
         let client_settings = VaultClientSettingsBuilder::default()
             .address(provider_info.url.clone())
             .token(provider_info.token.clone())
@@ -77,10 +78,17 @@ impl Vault {
         let secret_id: String = if is_dev_mode() {
             provider_info.login_pass.clone()
         } else {
-            unwrap::<VaultWrappedSecret>(&client, Some(&provider_info.login_pass))
-                .await
-                .unwrap()
-                .secret_id
+            smol::block_on(unwrap::<VaultWrappedSecret>(
+                &client,
+                Some(&provider_info.login_pass),
+            ))
+            .unwrap()
+            .secret_id
+
+            // unwrap::<VaultWrappedSecret>(&client, Some(&provider_info.login_pass))
+            //     .await
+            //     .unwrap()
+            //     .secret_id
         };
 
         let login = AppRoleLogin {
@@ -88,10 +96,12 @@ impl Vault {
             secret_id,
         };
 
-        let _ = client.login("approle", &login).await;
+        smol::block_on(async {
+            let _ = client.login("approle", &login).await;
 
-        let asd = kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
-        info!("{:#?}", asd);
+            let asd = kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
+            info!("{:#?}", asd);
+        });
 
         Self {
             client,
