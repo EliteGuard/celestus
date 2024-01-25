@@ -78,17 +78,21 @@ impl Vault {
         let secret_id: String = if is_dev_mode() {
             provider_info.login_pass.clone()
         } else {
-            smol::block_on(unwrap::<VaultWrappedSecret>(
-                &client,
-                Some(&provider_info.login_pass),
-            ))
-            .unwrap()
-            .secret_id
+            // smol::block_on(unwrap::<VaultWrappedSecret>(
+            //     &client,
+            //     Some(&provider_info.login_pass),
+            // ))
+            // .unwrap()
+            // .secret_id
 
-            // unwrap::<VaultWrappedSecret>(&client, Some(&provider_info.login_pass))
-            //     .await
-            //     .unwrap()
-            //     .secret_id
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    unwrap::<VaultWrappedSecret>(&client, Some(&provider_info.login_pass))
+                        .await
+                        .unwrap()
+                        .secret_id
+                })
+            })
         };
 
         let login = AppRoleLogin {
@@ -96,11 +100,14 @@ impl Vault {
             secret_id,
         };
 
-        smol::block_on(async {
-            let _ = client.login("approle", &login).await;
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let _ = client.login("approle", &login).await;
 
-            let asd = kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
-            info!("{:#?}", asd);
+                let asd =
+                    kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
+                info!("{:#?}", asd);
+            })
         });
 
         Self {
