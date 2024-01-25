@@ -34,9 +34,9 @@ impl<ConnectionInfo, Implementation> DataProvider<ConnectionInfo, Implementation
         self.implementation.as_ref()
     }
 
-    pub(super) fn delete_implementation(&mut self) {
-        self.implementation = None
-    }
+    // pub(super) fn delete_implementation(&mut self) {
+    //     self.implementation = None
+    // }
 }
 
 pub trait FetchProviderData {

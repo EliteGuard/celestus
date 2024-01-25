@@ -1,6 +1,7 @@
 use getset::Getters;
 use log::info;
 use serde_derive::Deserialize;
+use tokio::runtime::Runtime;
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 use vaultrs::kv2;
 use vaultrs::sys::wrapping::unwrap;
@@ -62,45 +63,79 @@ pub struct Vault {
     client: VaultClient,
     connectivity: DataProviderConnectivity,
     secrets_engine: VaultSecretsEngine,
+    runtime: Runtime,
 }
 
 impl Vault {
     pub fn new(provider_info: VaultEnvData, secrets_engine: VaultSecretsEngine) -> Self {
-        let client_settings = VaultClientSettingsBuilder::default()
-            .address(provider_info.url.clone())
-            .token(provider_info.token.clone())
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
             .build()
             .unwrap();
 
-        let mut client = VaultClient::new(client_settings).unwrap();
+        let client = create_vault_client(&provider_info);
 
-        let secret_id: String = if is_dev_mode() {
-            provider_info.login_pass.clone()
-        } else {
-            smol::block_on(async {
-                unwrap::<VaultWrappedSecret>(&client, Some(&provider_info.login_pass)).await
-            })
-            .unwrap()
-            .secret_id
-        };
-
-        let login = AppRoleLogin {
-            role_id: provider_info.login_id.clone(),
-            secret_id,
-        };
-
-        smol::block_on(async {
-            let _ = client.login("approle", &login).await;
-            let asd = kv2::read::<PostgresData>(&client, "kv", "dev/celestus/database/pg").await;
-            info!("{:#?}", asd);
-        });
-
-        Self {
+        let mut created = Self {
             client,
             secrets_engine,
             connectivity: DataProviderConnectivity::SingleConnection,
+            runtime,
+        };
+
+        created.approle_login(created.create_approle_login(&provider_info));
+
+        let asd = created.get_kv_data::<PostgresData>();
+        info!("{:#?}", asd);
+
+        created
+    }
+
+    fn get_login_secret(&self, provider_info: &VaultEnvData) -> String {
+        if is_dev_mode() {
+            provider_info.login_pass.clone()
+        } else {
+            self.runtime
+                .block_on(unwrap::<VaultWrappedSecret>(
+                    &self.client,
+                    Some(&provider_info.login_pass),
+                ))
+                .unwrap()
+                .secret_id
         }
     }
+
+    fn create_approle_login(&self, provider_info: &VaultEnvData) -> AppRoleLogin {
+        AppRoleLogin {
+            role_id: provider_info.login_id.clone(),
+            secret_id: self.get_login_secret(provider_info),
+        }
+    }
+
+    fn approle_login(&mut self, login: AppRoleLogin) {
+        self.runtime
+            .block_on(self.client.login("approle", &login))
+            .unwrap()
+    }
+
+    fn get_kv_data<DataStruct: for<'de> serde::Deserialize<'de>>(&self) -> DataStruct {
+        self.runtime
+            .block_on(kv2::read::<DataStruct>(
+                &self.client,
+                "kv",
+                "dev/celestus/database/pg",
+            ))
+            .unwrap()
+    }
+}
+
+fn create_vault_client(provider_info: &VaultEnvData) -> VaultClient {
+    let client_settings = VaultClientSettingsBuilder::default()
+        .address(provider_info.url.clone())
+        .token(provider_info.token.clone())
+        .build()
+        .unwrap();
+
+    VaultClient::new(client_settings).unwrap()
 }
 
 impl FetchProviderData for Vault {

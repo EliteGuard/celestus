@@ -6,8 +6,9 @@ use celestus::{
 };
 use log::info;
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+// #[tokio::main(flavor = "multi_thread", worker_threads = 1)]
+// #[tokio::main(flavor = "current_thread")]
+fn main() -> Result<()> {
     env_logger::init();
 
     init_environment();

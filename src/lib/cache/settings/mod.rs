@@ -39,6 +39,12 @@ pub enum SettingsTypes<'a> {
     Hashmap(&'a str, HashMapValueTypes),
 }
 
+impl<'a> Default for SettingsCache<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> SettingsCache<'a> {
     pub fn new() -> Self {
         let mut lru_bools: LruSettingsCache<bool> = LruCache::unbounded();
