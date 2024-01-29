@@ -9,7 +9,7 @@ use vaultrs_login::engines::approle::AppRoleLogin;
 use vaultrs_login::LoginClient;
 
 use crate::providers::data::business::postgres::PostgresData;
-use crate::providers::{DataProviderConnectivity, FetchProviderData};
+use crate::providers::{DataProviderConnectivity, DataProvision, DataProvisionActions};
 use crate::utils::environment::is_dev_mode;
 use crate::utils::web::URLInfo;
 
@@ -28,7 +28,22 @@ pub struct VaultEnvData {
     token: String,
     login_id: String,
     login_pass: String,
-    single_use: Option<String>,
+    single_use: Option<bool>,
+}
+
+impl DataProvisionActions for VaultEnvData {
+    fn get_provision_type(&self) -> DataProvision {
+        match self.get_single_use() {
+            Some(bool) => {
+                if *bool {
+                    DataProvision::OneTime
+                } else {
+                    DataProvision::OnDemand
+                }
+            }
+            None => DataProvision::OneTime,
+        }
+    }
 }
 
 impl URLInfo for VaultEnvData {
@@ -63,6 +78,7 @@ pub struct Vault {
     client: VaultClient,
     connectivity: DataProviderConnectivity,
     secrets_engine: VaultSecretsEngine,
+    base_path: String,
     runtime: Runtime,
 }
 
@@ -75,16 +91,22 @@ impl Vault {
 
         let client = create_vault_client(&provider_info);
 
+        let base_path = match is_dev_mode() {
+            true => "dev/celestus/".to_owned(),
+            false => "celestus/".to_owned(),
+        };
+
         let mut created = Self {
             client,
             secrets_engine,
             connectivity: DataProviderConnectivity::SingleConnection,
+            base_path,
             runtime,
         };
 
-        created.approle_login(created.create_approle_login(&provider_info));
+        created.login_with_approle(created.create_approle_login(&provider_info));
 
-        let asd = created.get_kv_data::<PostgresData>();
+        let asd = created.get_kv_data::<PostgresData>("database/pg");
         info!("{:#?}", asd);
 
         created
@@ -111,18 +133,18 @@ impl Vault {
         }
     }
 
-    fn approle_login(&mut self, login: AppRoleLogin) {
+    fn login_with_approle(&mut self, login: AppRoleLogin) {
         self.runtime
             .block_on(self.client.login("approle", &login))
             .unwrap()
     }
 
-    fn get_kv_data<DataStruct: for<'de> serde::Deserialize<'de>>(&self) -> DataStruct {
+    fn get_kv_data<DataStruct: for<'de> serde::Deserialize<'de>>(&self, path: &str) -> DataStruct {
         self.runtime
             .block_on(kv2::read::<DataStruct>(
                 &self.client,
                 "kv",
-                "dev/celestus/database/pg",
+                &format!("{}{}", self.base_path, path),
             ))
             .unwrap()
     }
@@ -136,10 +158,4 @@ fn create_vault_client(provider_info: &VaultEnvData) -> VaultClient {
         .unwrap();
 
     VaultClient::new(client_settings).unwrap()
-}
-
-impl FetchProviderData for Vault {
-    fn fetch_data(&self) {
-        // info!("Fetching.... {:#?}", self.client.settings)
-    }
 }

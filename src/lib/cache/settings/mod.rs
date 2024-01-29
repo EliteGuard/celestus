@@ -4,12 +4,8 @@ use core::result::Result::Ok;
 use std::collections::HashMap;
 
 use crate::{
-    providers::{
-        secrets::{
-            SecretsProvider, SecretsProviderImplementation, SecretsProviders,
-            SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
-        },
-        DataProvision, FetchProviderData,
+    providers::secrets::{
+        SecretsProvider, SecretsProviders, SETTING_SECRETS_PROVIDERS, SETTING_USE_SECRETS_PROVIDER,
     },
     utils::environment::{get_env_var, get_host_mode, SETTING_HOST_MODE},
 };
@@ -107,7 +103,7 @@ impl<'a> SettingsCache<'a> {
 
     pub fn get_secrets_provider(&self, key: &'a str) -> Option<&SecretsProvider> {
         match self.get_hashmap(SETTING_SECRETS_PROVIDERS).unwrap() {
-            HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().get(key),
+            HashMapValueTypes::SecretsProviders(sp) => sp.get_providers().get(&key.into()),
             // _ => None,
         }
     }
@@ -121,7 +117,7 @@ impl<'a> SettingsCache<'a> {
     fn load_hashmaps(&mut self) -> Result<()> {
         self.load_data_providers()?;
 
-        self.fetch_from_data_providers()?;
+        // self.fetch_from_data_providers()?;
 
         Ok(())
     }
@@ -152,13 +148,13 @@ impl<'a> SettingsCache<'a> {
     }
 
     pub fn fetch_from_secrets_providers(&mut self) -> Result<()> {
-        for secrets_provider in self.get_all_secrets_providers().into_iter() {
-            if *secrets_provider.get_provision_type() == DataProvision::OneTime {
-                match secrets_provider.get_implementation().unwrap() {
-                    SecretsProviderImplementation::Vault(v) => v.fetch_data(),
-                }
-            }
-        }
+        // for secrets_provider in self.get_all_secrets_providers().into_iter() {
+        //     if *secrets_provider.get_provision_type() == DataProvision::OneTime {
+        //         match secrets_provider.get_implementation().unwrap() {
+        //             SecretsProviderImplementation::Vault(v) => v.fetch_data(),
+        //         }
+        //     }
+        // }
 
         Ok(())
     }

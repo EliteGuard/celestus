@@ -25,7 +25,10 @@ fn main() -> Result<()> {
         .unwrap();
     match providers {
         HashMapValueTypes::SecretsProviders(sp) => {
-            info!("{:#?}", sp.get_providers().get("vault").unwrap().get_name());
+            info!(
+                "{:#?}",
+                sp.get_providers().get(&"vault".into()).unwrap().get_name()
+            );
         }
     }
 

@@ -10,7 +10,7 @@ use crate::utils::web::{URLData, URLInfo};
 
 use self::vault::{Vault, VaultEnvData, VaultSecretsEngine, VAULT_SECRETS_PROVIDER_NAME};
 
-use super::{DataProvider, DataProviderConnectivity, DataProvision};
+use super::{DataProvider, DataProviderConnectivity, DataProviderName, DataProvisionActions};
 
 pub const SETTING_USE_SECRETS_PROVIDER: &str = "use_secrets_provider";
 pub const ENV_USE_SECRETS_PROVIDER: &str = "USE_SECRETS_PROVIDER";
@@ -23,7 +23,7 @@ pub type SecretsProvider = DataProvider<URLData, SecretsProviderImplementation>;
 #[derive(Default, Getters)]
 #[getset(get = "pub with_prefix")]
 pub struct SecretsProviders {
-    providers: HashMap<String, SecretsProvider>,
+    providers: HashMap<DataProviderName, SecretsProvider>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -42,10 +42,10 @@ impl SecretsProviders {
 
         let found_secrets_providers = load_secrets_providers(&secrets_providers_names);
 
-        let mut providers = HashMap::<String, SecretsProvider>::new();
+        let mut providers = HashMap::<DataProviderName, SecretsProvider>::new();
 
-        for provider in found_secrets_providers.into_iter() {
-            providers.insert(provider.get_name().to_string(), provider);
+        for found_providers in found_secrets_providers.into_iter() {
+            providers.insert(found_providers.get_name().into(), found_providers);
         }
 
         Self { providers }
@@ -90,13 +90,13 @@ fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvider> {
 
     let parsed_env_data: VaultEnvData = load_provider_from_env::<VaultEnvData>(&provider_name);
 
-    // vault_providers.extend(load_vault_secrets_providers());
-
     let connection_info = URLData {
         host: parsed_env_data.get_host().to_string(),
         port: parsed_env_data.get_port(),
         url: parsed_env_data.get_url().to_string(),
     };
+
+    let provision_type = parsed_env_data.get_provision_type();
 
     let implementation = Some(SecretsProviderImplementation::Vault(Vault::new(
         parsed_env_data,
@@ -107,7 +107,7 @@ fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvider> {
         name: provider_name.to_string().to_lowercase(),
         prefix: format!("{}_", provider_name.to_string().to_lowercase()),
         connection_info,
-        provision_type: DataProvision::OneTime,
+        provision_type,
         connectivity: DataProviderConnectivity::SingleConnection,
         implementation,
     });
@@ -115,7 +115,7 @@ fn load_vault_secrets_provider(provider_name: String) -> Vec<SecretsProvider> {
     vault_providers
 }
 
-fn load_provider_from_env<ProviderType: for<'a> Deserialize<'a>>(
+fn load_provider_from_env<ProviderType: for<'a> Deserialize<'a> + DataProvisionActions>(
     provider_name: &str,
 ) -> ProviderType {
     return match envy::prefixed(format!("{}_", provider_name)).from_env::<ProviderType>() {
