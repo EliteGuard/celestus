@@ -43,6 +43,12 @@ For more secure way wrap the secret_id:
 vault write -wrap-ttl=10m -f auth/approle/role/celestus/secret-id
 vault write -wrap-ttl=720h -f auth/approle/role/celestus/secret-id
 
+## Get token from role id and secret id
+
+vault write auth/approle/login \
+    role_id= \
+    secret_id=
+
 ## Login wtih approle
 
 vault write auth/approle/login role_id="" secret_id=""
