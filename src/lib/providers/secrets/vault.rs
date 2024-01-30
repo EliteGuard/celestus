@@ -4,7 +4,6 @@ use serde_derive::Deserialize;
 use tokio::runtime::Runtime;
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 use vaultrs::kv2;
-use vaultrs::sys::wrapping::unwrap;
 use vaultrs_login::engines::approle::AppRoleLogin;
 use vaultrs_login::LoginClient;
 
@@ -25,7 +24,6 @@ pub struct VaultEnvData {
     #[getset(skip)]
     url: String,
     engine: String,
-    token: String,
     login_id: String,
     login_pass: String,
     single_use: Option<bool>,
@@ -112,24 +110,10 @@ impl Vault {
         created
     }
 
-    fn get_login_secret(&self, provider_info: &VaultEnvData) -> String {
-        if is_dev_mode() {
-            provider_info.login_pass.clone()
-        } else {
-            self.runtime
-                .block_on(unwrap::<VaultWrappedSecret>(
-                    &self.client,
-                    Some(&provider_info.login_pass),
-                ))
-                .unwrap()
-                .secret_id
-        }
-    }
-
     fn create_approle_login(&self, provider_info: &VaultEnvData) -> AppRoleLogin {
         AppRoleLogin {
             role_id: provider_info.login_id.clone(),
-            secret_id: self.get_login_secret(provider_info),
+            secret_id: provider_info.login_pass.clone(),
         }
     }
 
@@ -153,7 +137,6 @@ impl Vault {
 fn create_vault_client(provider_info: &VaultEnvData) -> VaultClient {
     let client_settings = VaultClientSettingsBuilder::default()
         .address(provider_info.url.clone())
-        .token(provider_info.token.clone())
         .build()
         .unwrap();
 
