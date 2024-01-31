@@ -9,7 +9,7 @@ use vaultrs_login::LoginClient;
 
 use crate::providers::data::business::postgres::PostgresData;
 use crate::providers::{DataProviderConnectivity, DataProvision, DataProvisionActions};
-use crate::utils::environment::is_dev_mode;
+use crate::utils::environment::{is_dev_mode, is_docker_host};
 use crate::utils::web::URLInfo;
 
 pub const VAULT_SECRETS_PROVIDER_NAME: &str = "VAULT";
@@ -135,8 +135,14 @@ impl Vault {
 }
 
 fn create_vault_client(provider_info: &VaultEnvData) -> VaultClient {
+    let address: String = if is_dev_mode() && is_docker_host() {
+        "http://vault-dev:8201".to_owned()
+    } else {
+        provider_info.url.clone()
+    };
+
     let client_settings = VaultClientSettingsBuilder::default()
-        .address(provider_info.url.clone())
+        .address(address)
         .build()
         .unwrap();
 
