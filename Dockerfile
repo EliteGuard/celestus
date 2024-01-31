@@ -13,8 +13,6 @@ COPY ./Cargo.toml ./Cargo.toml
 # Copy the source code and build the application
 COPY ./src ./src
 
-
-
 FROM base AS build-prod
 RUN cargo build --release --locked
 RUN rm -rf src/*.rs
@@ -44,8 +42,9 @@ WORKDIR /usr/src/app
 
 ENTRYPOINT ["./celestus"]
 
-
+FROM base AS dev-build
+RUN cargo install cargo-watch
 
 #Dev stage
-FROM base AS dev
-RUN cargo install cargo-watch
+FROM dev-build AS dev
+ENV RUST_LOG=celestus=debug

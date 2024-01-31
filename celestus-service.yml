@@ -34,6 +34,8 @@ services:
         #     - 9001:9001
         volumes:
             - .:/celestus
+            # - ./.cargo/registry:/usr/local/cargo/registry
+            - ./target:/celestus/target
         env_file:
             - ./.env
         # environment:
@@ -41,7 +43,7 @@ services:
         #     - VAULT_HOST=vault-dev
         #     - VAULT_PORT=8201
         #     - VAULT_URL=http://vault-dev:8201
-        command: sh -c "RUST_LOG=celestus=debug cargo watch -x run -i ./*.json -w src"
+        command: sh -c "cargo watch -x run -i ./*.json -w src"
         restart: on-failure
         profiles:
             - dev
