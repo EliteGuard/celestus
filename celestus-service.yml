@@ -33,9 +33,9 @@ services:
         # ports:
         #     - 9001:9001
         volumes:
-            - .:/celestus
+            - .:/celestus-dev
             # - ./.cargo/registry:/usr/local/cargo/registry
-            - ./target:/celestus/target
+            - ./src:/celestus/src
         env_file:
             - ./.env
         # environment:

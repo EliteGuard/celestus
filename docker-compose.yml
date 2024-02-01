@@ -93,7 +93,6 @@ volumes:
     vault-data:
     vault-data-dev:
     celestus:
-    celestus-dev:
     redis:
     redis-dev:
     postgres:
